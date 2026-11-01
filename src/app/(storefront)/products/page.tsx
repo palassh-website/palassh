@@ -13,6 +13,7 @@ import {
   X,
   Scale,
   Zap,
+  Lock,
 } from "lucide-react";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 import { ScrollReveal } from "@/components/shared/ScrollReveal";
@@ -28,6 +29,7 @@ import {
   saveStoredCart,
   getCurrentCustomerTier,
   getFestiveModeStatus,
+  getNormalPurchaseAllowed,
   validateDirectFlowerPurchaseLimit,
 } from "@/features/catalog/types";
 
@@ -47,6 +49,7 @@ export default function AllProductsPage() {
     isFestiveDay: false,
     festivalName: "Festive Puja",
   });
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
 
   const [popupToast, setPopupToast] = useState<{
     visible: boolean;
@@ -62,16 +65,19 @@ export default function AllProductsPage() {
       setCart(getStoredCart());
       setCustomerTier(getCurrentCustomerTier());
       setFestiveStatus(getFestiveModeStatus());
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
     };
     syncAll();
     window.addEventListener("palassh-cart-updated", syncAll);
     window.addEventListener("palassh-festive-updated", syncAll);
     window.addEventListener("palassh-plans-updated", syncAll);
+    window.addEventListener("palassh-store-access-updated", syncAll);
     window.addEventListener("storage", syncAll);
     return () => {
       window.removeEventListener("palassh-cart-updated", syncAll);
       window.removeEventListener("palassh-festive-updated", syncAll);
       window.removeEventListener("palassh-plans-updated", syncAll);
+      window.removeEventListener("palassh-store-access-updated", syncAll);
       window.removeEventListener("storage", syncAll);
     };
   }, []);
@@ -149,9 +155,12 @@ export default function AllProductsPage() {
 
   const totalCartGrams = cart.reduce((acc, i) => acc + (i.grams || 100), 0);
   const totalCartAmount = cart.reduce((acc, i) => acc + i.unitPrice, 0);
+  const isNormalUser =
+    customerTier === "NORMAL" || customerTier === "ONE_DAY";
   const isNormalLockedOnFestive =
-    festiveStatus.isFestiveDay &&
-    (customerTier === "NORMAL" || customerTier === "ONE_DAY");
+    festiveStatus.isFestiveDay && isNormalUser;
+  const isNormalPurchaseBlocked =
+    !normalPurchaseAllowed && isNormalUser;
 
   return (
     <FeatureBoundary featureName="ALL_PRODUCTS">
@@ -281,6 +290,37 @@ export default function AllProductsPage() {
             </div>
           )}
 
+          {/* Non-Subscriber Purchases Paused Banner */}
+          {!festiveStatus.isFestiveDay && isNormalPurchaseBlocked && (
+            <div className="rounded-3xl border-2 border-amber-500/70 bg-[#071C15] p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <Lock className="h-6 w-6 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-serif text-lg sm:text-xl font-bold text-amber-200">
+                    🔒 Subscriber-Exclusive Orders Active
+                  </p>
+                  <p className="text-xs sm:text-sm text-stone-200">
+                    Loose flower purchases are currently open exclusively to Weekly and Monthly subscribers. Please choose a subscription plan to unlock fresh morning deliveries.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/#plans"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] to-amber-500 px-6 py-3.5 text-xs font-bold text-white shadow-lg shrink-0 hover:brightness-110"
+              >
+                <span>View Subscription Plans</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
+
+          {!festiveStatus.isFestiveDay && !isNormalUser && !normalPurchaseAllowed && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-[#071C15] px-4 py-2 text-xs font-bold text-emerald-200">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <span>Subscriber Access Active ({customerTier}): Your member quota is unlocked for direct flower orders.</span>
+            </div>
+          )}
+
           {/* All Flowers Grid */}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {flowers.map((flower, idx) => {
@@ -303,8 +343,17 @@ export default function AllProductsPage() {
                           className="h-full w-full object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#071C15]/85 via-transparent to-transparent" />
-                        <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3.5 py-1 text-[11px] font-bold text-emerald-950 shadow-sm">
-                          {flower.inStock ? "Fresh Farm Stock" : "Out of Stock"}
+                        <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3.5 py-1 text-[11px] font-bold text-emerald-950 shadow-sm flex items-center gap-1.5">
+                          {(isNormalPurchaseBlocked || isNormalLockedOnFestive) && (
+                            <Lock className="h-3 w-3 text-[#E8502B]" />
+                          )}
+                          <span>
+                            {!flower.inStock
+                              ? "Out of Stock"
+                              : isNormalPurchaseBlocked || isNormalLockedOnFestive
+                              ? "Subscribers Only"
+                              : "Fresh Farm Stock"}
+                          </span>
                         </span>
                         {existingInCart && (
                           <span className="absolute right-4 top-4 rounded-full bg-[#E8502B] px-3 py-1 text-[11px] font-bold text-white shadow-sm">
@@ -374,21 +423,35 @@ export default function AllProductsPage() {
                       </div>
                     </div>
 
-                    {/* Dual Action Buttons: 1. Add to Cart + 2. Buy Now (Direct Checkout) */}
+                    {/* Dual Action Buttons: 1. Add to Cart + 2. Buy Now (Direct Checkout) OR Subscribe CTA */}
                     <div className="px-6 pb-6 pt-2">
-                      {!flower.inStock || isNormalLockedOnFestive ? (
+                      {!flower.inStock ? (
                         <button
                           type="button"
                           disabled
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-200 py-4 text-xs font-bold text-stone-500 cursor-not-allowed"
                         >
                           <Scale className="h-4 w-4" />
-                          <span>
-                            {isNormalLockedOnFestive
-                              ? "Locked on Festive Day (Subscribers Only)"
-                              : "Currently Out of Stock"}
-                          </span>
+                          <span>Currently Out of Stock</span>
                         </button>
+                      ) : isNormalLockedOnFestive ? (
+                        <Link
+                          href="/#plans"
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-stone-900 via-[#071C15] to-emerald-950 border border-amber-400/50 py-4 text-xs font-bold text-amber-300 shadow-md hover:brightness-110 transition cursor-pointer"
+                          title="Locked on Festive Day • Click to view Subscription Plans"
+                        >
+                          <Lock className="h-4 w-4 text-amber-300" />
+                          <span>Locked on Festive Day • View Plans</span>
+                        </Link>
+                      ) : isNormalPurchaseBlocked ? (
+                        <Link
+                          href="/#plans"
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-amber-600 py-4 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition hover:brightness-110 cursor-pointer"
+                          title="Locked for Non-Subscribers • Click to view Subscription Plans"
+                        >
+                          <Lock className="h-4 w-4" />
+                          <span>Subscribe to Order Flowers</span>
+                        </Link>
                       ) : (
                         <div className="grid grid-cols-2 gap-2.5">
                           <button

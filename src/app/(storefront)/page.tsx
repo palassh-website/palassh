@@ -25,6 +25,7 @@ import {
   Flame,
   Zap,
   Scale,
+  Lock,
 } from "lucide-react";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 import { PincodeBox } from "@/features/pincode-checker/components/PincodeBox";
@@ -47,6 +48,7 @@ import {
   saveStoredCart,
   getCurrentCustomerTier,
   getFestiveModeStatus,
+  getNormalPurchaseAllowed,
   validateDirectFlowerPurchaseLimit,
 } from "@/features/catalog/types";
 
@@ -318,7 +320,7 @@ export default function HomePage() {
   const [reviewerQuote, setReviewerQuote] = useState<string>("");
   const [reviewSubmittedMsg, setReviewSubmittedMsg] = useState<string>("");
 
-  // Tier & Festive State
+  // Tier, Festive & Store Access State
   const [customerTier, setCustomerTier] = useState<
     "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY"
   >("NORMAL");
@@ -326,6 +328,7 @@ export default function HomePage() {
     isFestiveDay: false,
     festivalName: "Festive Puja",
   });
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
 
   useEffect(() => {
     const syncState = () => {
@@ -336,12 +339,14 @@ export default function HomePage() {
       setCart(getStoredCart());
       setCustomerTier(getCurrentCustomerTier());
       setFestiveStatus(getFestiveModeStatus());
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
     };
     syncState();
 
     window.addEventListener("palassh-cart-updated", syncState);
     window.addEventListener("palassh-festive-updated", syncState);
     window.addEventListener("palassh-plans-updated", syncState);
+    window.addEventListener("palassh-store-access-updated", syncState);
     window.addEventListener("storage", syncState);
 
     try {
@@ -358,9 +363,33 @@ export default function HomePage() {
       window.removeEventListener("palassh-cart-updated", syncState);
       window.removeEventListener("palassh-festive-updated", syncState);
       window.removeEventListener("palassh-plans-updated", syncState);
+      window.removeEventListener("palassh-store-access-updated", syncState);
       window.removeEventListener("storage", syncState);
     };
   }, []);
+
+  // Ensure page load/reload always stays at top (never auto-scrolls on refresh)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#plans") {
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {}
+    }
+  }, []);
+
+  // Dedicated instant smooth scroll to Subscription Plans section ONLY when user explicitly clicks
+  const scrollToPlans = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const plansEl = document.getElementById("plans");
+    if (plansEl) {
+      plansEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      router.push("/#plans");
+    }
+  };
 
   // Auto-advance Full-Screen Hero Carousel every 6 seconds
   useEffect(() => {
@@ -492,9 +521,12 @@ export default function HomePage() {
   const totalCartAmount = cart.reduce((acc, i) => acc + i.unitPrice, 0);
   const totalCartGrams = cart.reduce((acc, i) => acc + (i.grams || 100), 0);
   const homepageFlowers = flowers.slice(0, 3);
+  const isNormalUser =
+    customerTier === "NORMAL" || customerTier === "ONE_DAY";
   const isNormalLockedOnFestive =
-    festiveStatus.isFestiveDay &&
-    (customerTier === "NORMAL" || customerTier === "ONE_DAY");
+    festiveStatus.isFestiveDay && isNormalUser;
+  const isNormalPurchaseBlocked =
+    !normalPurchaseAllowed && isNormalUser;
 
   const activeSlideData = heroBanners[currentSlide] || DEFAULT_HERO_BANNERS[0];
 
@@ -849,8 +881,60 @@ export default function HomePage() {
                     Monthly (max 3 KG) subscribers.
                   </p>
                 </div>
+                {isNormalLockedOnFestive && (
+                  <button
+                    type="button"
+                    onClick={(e) => scrollToPlans(e)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-2 text-xs font-bold text-stone-950 shadow-md transition hover:bg-amber-300 whitespace-nowrap cursor-pointer shrink-0 self-start sm:self-auto"
+                  >
+                    <Lock className="h-3.5 w-3.5 text-[#E8502B]" />
+                    <span>View Subscription Plans</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </ScrollReveal>
+          )}
+
+          {!festiveStatus.isFestiveDay && isNormalPurchaseBlocked && (
+            <ScrollReveal variant="fade-lift">
+              <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/60 bg-[#071C15] p-5 text-white shadow-xl grain">
+                <div
+                  onClick={(e) => scrollToPlans(e)}
+                  className="flex items-center gap-3.5 cursor-pointer group"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/20 text-amber-300 group-hover:scale-105 transition">
+                    <Lock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-emerald-100">
+                      <strong className="text-amber-300 font-serif text-sm sm:text-base">
+                        Subscriber-Exclusive Orders:
+                      </strong>{" "}
+                      Direct loose flower orders are currently reserved for Weekly &amp; Monthly plan members.
+                    </p>
+                    <p className="text-[11px] text-emerald-200/70 mt-0.5">
+                      Subscribe to a Weekly or Monthly plan to order fresh daily flowers and unlock up to 2 KG – 3 KG quotas!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => scrollToPlans(e)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#E8502B] to-amber-500 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:brightness-110 whitespace-nowrap self-start sm:self-auto shrink-0 cursor-pointer"
+                >
+                  <span>View Subscription Plans</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </ScrollReveal>
+          )}
+
+          {!festiveStatus.isFestiveDay && !isNormalUser && !normalPurchaseAllowed && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-[#071C15] px-4 py-2 text-xs font-bold text-emerald-200">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <span>Subscriber Access Active ({customerTier}): Your member quota is unlocked for direct flower orders.</span>
+            </div>
           )}
 
           {/* 3 Homepage Flower Cards with 3D flip-in, tilt, dual buttons */}
@@ -871,11 +955,15 @@ export default function HomePage() {
                 >
                   <Tilt3DCard
                     isUplifted={isCardUplifted}
-                    onClick={() =>
+                    onClick={() => {
+                      if (isNormalPurchaseBlocked || isNormalLockedOnFestive) {
+                        scrollToPlans();
+                        return;
+                      }
                       setUpliftedFlowerId((prev) =>
                         prev === flower.id ? null : flower.id
-                      )
-                    }
+                      );
+                    }}
                     className={`group flex flex-col justify-between h-full rounded-[2.2rem] border bg-white cursor-pointer transition-all duration-300 ${
                       isCardUplifted
                         ? "border-[#E8502B] -translate-y-2 shadow-[0_24px_50px_-10px_rgba(232,80,43,0.18)]"
@@ -890,10 +978,28 @@ export default function HomePage() {
                           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#071C15]/85 via-transparent to-transparent" />
-                        <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3.5 py-1 text-[11px] font-bold text-emerald-950 shadow-xs">
-                          {inCartItem
-                            ? `In Basket: ${inCartItem.grams}g`
-                            : "Fresh Farm Stock"}
+                        <span
+                          onClick={(e) => {
+                            if (isNormalPurchaseBlocked || isNormalLockedOnFestive) {
+                              scrollToPlans(e);
+                            }
+                          }}
+                          className={`absolute left-4 top-4 rounded-full px-3.5 py-1 text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition ${
+                            isNormalPurchaseBlocked || isNormalLockedOnFestive
+                              ? "bg-amber-300 text-stone-950 hover:bg-amber-400 cursor-pointer"
+                              : "bg-white/95 text-emerald-950"
+                          }`}
+                        >
+                          {(isNormalPurchaseBlocked || isNormalLockedOnFestive) && (
+                            <Lock className="h-3 w-3 text-[#E8502B]" />
+                          )}
+                          <span>
+                            {inCartItem
+                              ? `In Basket: ${inCartItem.grams}g`
+                              : isNormalPurchaseBlocked || isNormalLockedOnFestive
+                              ? "Subscribers Only"
+                              : "Fresh Farm Stock"}
+                          </span>
                         </span>
                         <div className="absolute bottom-3.5 left-4 right-4 flex items-center justify-between text-white">
                           <span className="text-xs font-medium text-emerald-100">
@@ -960,16 +1066,35 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* Dual Action Buttons: Add Pack + Buy Now */}
+                    {/* Dual Action Buttons: Add Pack + Buy Now OR Subscriber Exclusive CTA */}
                     <div className="px-6 pb-6 pt-1 relative z-30">
-                      {!flower.inStock || isNormalLockedOnFestive ? (
+                      {!flower.inStock ? (
                         <button
                           type="button"
                           disabled
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-200 py-3.5 text-xs font-bold text-stone-500 cursor-not-allowed"
                         >
-                          <Scale className="h-4 w-4" />
-                          <span>Locked on Festive Day</span>
+                          <span>Out of Stock</span>
+                        </button>
+                      ) : isNormalLockedOnFestive ? (
+                        <button
+                          type="button"
+                          onClick={(e) => scrollToPlans(e)}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-stone-900 via-[#071C15] to-emerald-950 border border-amber-400/50 py-3.5 px-3 text-xs font-bold text-amber-300 shadow-md hover:brightness-110 transition cursor-pointer"
+                          title="Locked on Festive Day • Click to view Subscription Plans"
+                        >
+                          <Lock className="h-3.5 w-3.5 text-amber-300" />
+                          <span>Locked on Festive Day • View Plans</span>
+                        </button>
+                      ) : isNormalPurchaseBlocked ? (
+                        <button
+                          type="button"
+                          onClick={(e) => scrollToPlans(e)}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-amber-600 py-3.5 px-3 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition hover:brightness-110 cursor-pointer"
+                          title="Locked for Non-Subscribers • Click to view Subscription Plans"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          <span>Subscribe to Order Flowers</span>
                         </button>
                       ) : (
                         <div className="grid grid-cols-2 gap-2.5">

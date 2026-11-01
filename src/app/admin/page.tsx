@@ -21,6 +21,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 import {
@@ -37,6 +39,8 @@ import {
   getFestiveDatesList,
   saveFestiveDatesList,
   getTomorrowDateString,
+  getNormalPurchaseAllowed,
+  saveNormalPurchaseAllowed,
 } from "@/features/catalog/types";
 
 interface DispatchRow {
@@ -96,6 +100,7 @@ export default function AdminDashboardPage() {
     festivalName: "Festive Puja",
   });
   const [festiveDates, setFestiveDates] = useState<string[]>([]);
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
   const [toast, setToast] = useState<string>("");
 
   // Month-Wise Calendar State (Point #5)
@@ -124,6 +129,14 @@ export default function AdminDashboardPage() {
     setFestiveDates(getFestiveDatesList());
     setFestiveMode(getFestiveModeStatus());
     setPlans(getActivePlansCatalog());
+    setNormalPurchaseAllowed(getNormalPurchaseAllowed());
+
+    const syncStoreAccess = () => {
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
+      setFestiveMode(getFestiveModeStatus());
+    };
+    window.addEventListener("palassh-store-access-updated", syncStoreAccess);
+    window.addEventListener("palassh-festive-updated", syncStoreAccess);
 
     try {
       const liveRows: DispatchRow[] = [];
@@ -175,11 +188,28 @@ export default function AdminDashboardPage() {
     } catch {
       // Ignore error
     }
+
+    return () => {
+      window.removeEventListener("palassh-store-access-updated", syncStoreAccess);
+      window.removeEventListener("palassh-festive-updated", syncStoreAccess);
+    };
   }, []);
 
   const showNotice = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4500);
+  };
+
+  // Toggle Normal Customer Direct Flower Purchases (Point #New: Separate from Festive)
+  const handleToggleNormalPurchase = () => {
+    const nextState = !normalPurchaseAllowed;
+    setNormalPurchaseAllowed(nextState);
+    saveNormalPurchaseAllowed(nextState);
+    showNotice(
+      nextState
+        ? "Normal Shopping ENABLED: Non-subscribers can now purchase loose flowers up to 500g."
+        : "Normal Shopping PAUSED: Loose flower orders are now locked exclusively for Weekly & Monthly subscribers!"
+    );
   };
 
   // Toggle Manual Festive Mode
@@ -419,6 +449,30 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* Normal Customer Shopping Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleNormalPurchase}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
+                  normalPurchaseAllowed
+                    ? "border border-emerald-600 bg-emerald-950 text-emerald-200 hover:bg-emerald-900"
+                    : "bg-[#E8502B] text-white shadow-lg ring-2 ring-orange-400/50"
+                }`}
+                title="When OFF, loose flowers can only be purchased by Weekly & Monthly subscribers"
+              >
+                {normalPurchaseAllowed ? (
+                  <>
+                    <Unlock className="h-4 w-4 text-emerald-400" />
+                    <span>Normal Orders: ON (Public)</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4 text-amber-300" />
+                    <span>Normal Orders: OFF (Subscribers Only)</span>
+                  </>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={handleToggleFestiveMode}
@@ -482,13 +536,75 @@ export default function AdminDashboardPage() {
             </div>
             <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                Current Store Rule
+                Non-Subscriber Orders
               </span>
-              <p className="mt-1 font-serif text-lg font-bold text-emerald-950">
-                {festiveMode.isFestiveDay
-                  ? "Festive Lock (2KG/3KG)"
-                  : "Normal (500g Direct)"}
+              <p
+                className={`mt-1 font-serif text-lg font-bold ${
+                  normalPurchaseAllowed ? "text-emerald-800" : "text-[#E8502B]"
+                }`}
+              >
+                {normalPurchaseAllowed
+                  ? festiveMode.isFestiveDay
+                    ? "Festive Lock (2KG/3KG)"
+                    : "Open (500g Public)"
+                  : "Locked (Subscribers Only)"}
               </p>
+            </div>
+          </div>
+
+          {/* STORE ACCESS & CUSTOMER PURCHASE CONTROL CARD */}
+          <div className="rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-7 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1.5 max-w-2xl">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-900">
+                  <Sparkles className="h-3 w-3 text-[#E8502B]" />
+                  <span>Store Access Control • Normal Customer Purchases</span>
+                </div>
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-stone-900">
+                  Non-Subscriber Direct Flower Purchases
+                </h3>
+                <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                  {normalPurchaseAllowed
+                    ? "🟢 OPEN: Regular customers (without any plan) can browse and purchase loose flower packs (up to 500g). Subscribers can order up to 2–3 KG."
+                    : "🔒 SUBSCRIBERS ONLY: Loose flower purchases are disabled for regular non-subscribers. Only active Weekly & Monthly plan subscribers can purchase loose flowers."}
+                </p>
+                <p className="text-[11px] text-stone-400 italic">
+                  Note: This toggle operates separately from Festive Days. Weekly and Monthly subscription plans remain available for purchase at all times.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 bg-[#FAF7F2] border border-stone-200 p-4 rounded-2xl shrink-0">
+                <div className="text-right">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                    Current Mode
+                  </span>
+                  <span
+                    className={`inline-block font-bold text-xs ${
+                      normalPurchaseAllowed ? "text-emerald-700" : "text-[#E8502B]"
+                    }`}
+                  >
+                    {normalPurchaseAllowed ? "● ALL SHOPPERS ALLOWED" : "🔒 SUBSCRIBERS ONLY"}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleNormalPurchase}
+                  className={`relative inline-flex h-8 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    normalPurchaseAllowed ? "bg-emerald-600" : "bg-[#E8502B]"
+                  }`}
+                  role="switch"
+                  aria-checked={normalPurchaseAllowed}
+                  title="Click to toggle non-subscriber purchases"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      normalPurchaseAllowed ? "translate-x-8" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 

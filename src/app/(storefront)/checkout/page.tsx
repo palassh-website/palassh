@@ -22,6 +22,7 @@ import {
   saveStoredCart,
   getCurrentCustomerTier,
   getFestiveModeStatus,
+  getNormalPurchaseAllowed,
   validateDirectFlowerPurchaseLimit,
   getTomorrowDateString,
   getActivePlansCatalog,
@@ -39,10 +40,13 @@ function CheckoutContent() {
   const isOneTimeCartCheckout = modeParam === "onetime";
 
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(() => {
-    const catalog = getActivePlansCatalog();
-    return catalog.find((p) => p.slug === planSlugParam) || catalog[2] || INITIAL_PLANS[2];
+    return (
+      INITIAL_PLANS.find((p) => p.slug === planSlugParam) ||
+      INITIAL_PLANS[2]
+    );
   });
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [mounted, setMounted] = useState(false);
 
   // Strictly Empty Initial State (Clean Placeholders Only)
   const [formData, setFormData] = useState({
@@ -70,19 +74,26 @@ function CheckoutContent() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [formError, setFormError] = useState("");
+  const [customerTier, setCustomerTier] = useState("NORMAL");
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
     const syncCheckout = () => {
       const activePlans = getActivePlansCatalog();
       const matched = activePlans.find((p) => p.slug === planSlugParam);
       if (matched) setSelectedPlan(matched);
       setCartItems(getStoredCart());
+      setCustomerTier(getCurrentCustomerTier());
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
     };
     syncCheckout();
     window.addEventListener("palassh-plans-updated", syncCheckout);
+    window.addEventListener("palassh-store-access-updated", syncCheckout);
     window.addEventListener("storage", syncCheckout);
     return () => {
       window.removeEventListener("palassh-plans-updated", syncCheckout);
+      window.removeEventListener("palassh-store-access-updated", syncCheckout);
       window.removeEventListener("storage", syncCheckout);
     };
   }, [planSlugParam]);
@@ -331,6 +342,31 @@ function CheckoutContent() {
                 </span>
               </div>
 
+              {isOneTimeCartCheckout &&
+                !normalPurchaseAllowed &&
+                customerTier !== "WEEKLY" &&
+                customerTier !== "MONTHLY" && (
+                  <div className="flex items-start gap-3 rounded-2xl border-2 border-amber-400 bg-[#071C15] p-5 text-white shadow-md">
+                    <Lock className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-serif text-sm sm:text-base font-bold text-amber-200">
+                        🔒 Non-Subscriber Flower Orders Currently Paused
+                      </p>
+                      <p className="text-xs text-stone-200 leading-relaxed">
+                        The store admin has paused direct loose flower checkouts for non-subscribers. Active Weekly and Monthly plan members can order flowers freely.
+                      </p>
+                      <div className="pt-2">
+                        <Link
+                          href="/#plans"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#E8502B] to-amber-500 px-4 py-2 text-xs font-bold text-white shadow hover:brightness-110"
+                        >
+                          <span>Subscribe to a Plan to Order →</span>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               <form onSubmit={handleCheckoutSubmit} className="space-y-5 pt-1">
                 <h2 className="font-serif text-xl font-bold text-stone-900">
                   Devotee Contact & Email Verification
@@ -558,7 +594,7 @@ function CheckoutContent() {
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-emerald-600 py-4 text-sm sm:text-base font-bold text-white shadow-xl shadow-orange-500/25 transition hover:brightness-110 cursor-pointer"
                 >
                   <Lock className="h-4 w-4" />
-                  <span>
+                  <span suppressHydrationWarning>
                     {isProcessing
                       ? "Processing Order..."
                       : `Pay ₹${(isOneTimeCartCheckout
@@ -636,7 +672,7 @@ function CheckoutContent() {
                 </div>
                 <div className="flex justify-between text-base font-bold text-stone-900 pt-2 border-t border-stone-100">
                   <span>Total Payable</span>
-                  <span className="font-serif text-2xl text-[#E8502B]">
+                  <span suppressHydrationWarning className="font-serif text-2xl text-[#E8502B]">
                     ₹
                     {(isOneTimeCartCheckout
                       ? totalCartAmount

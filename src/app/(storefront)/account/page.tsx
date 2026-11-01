@@ -19,6 +19,7 @@ import {
   getActivePlansCatalog,
   getCurrentCustomerTier,
   getFestiveModeStatus,
+  getNormalPurchaseAllowed,
 } from "@/features/catalog/types";
 import { SERVICEABLE_PINCODES } from "@/features/pincode-checker/pincode.service";
 
@@ -37,6 +38,7 @@ export default function MyAccountPage() {
     isFestiveDay: false,
     festivalName: "Festive Puja",
   });
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
   const [savedToast, setSavedToast] = useState("");
 
   useEffect(() => {
@@ -44,10 +46,12 @@ export default function MyAccountPage() {
       setPlans(getActivePlansCatalog());
       setTier(getCurrentCustomerTier());
       setFestive(getFestiveModeStatus());
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
     };
     sync();
 
     window.addEventListener("palassh-plans-updated", sync);
+    window.addEventListener("palassh-store-access-updated", sync);
     window.addEventListener("storage", sync);
 
     try {
@@ -61,6 +65,7 @@ export default function MyAccountPage() {
 
     return () => {
       window.removeEventListener("palassh-plans-updated", sync);
+      window.removeEventListener("palassh-store-access-updated", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -235,6 +240,18 @@ export default function MyAccountPage() {
                   <span className="text-emerald-200">Store Festive Mode:</span>
                   <span className="font-bold text-white">
                     {festive.isFestiveDay ? "ON (Festive Day)" : "OFF (Normal Day)"}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-white/10">
+                  <span className="text-emerald-200">Non-Subscriber Access:</span>
+                  <span
+                    className={`font-bold ${
+                      normalPurchaseAllowed ? "text-emerald-300" : "text-amber-300"
+                    }`}
+                  >
+                    {normalPurchaseAllowed
+                      ? "OPEN (Public Shopping)"
+                      : "PAUSED (Subscribers Only)"}
                   </span>
                 </div>
               </div>

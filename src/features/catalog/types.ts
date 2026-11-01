@@ -224,6 +224,41 @@ export const CART_STORAGE_KEY = "palassh_flower_cart_v3";
 export const FESTIVE_MODE_STORAGE_KEY = "palassh_festive_mode_v2";
 export const FESTIVE_DATES_STORAGE_KEY = "palassh_festive_dates_v1";
 export const PLANS_STORAGE_KEY = "palassh_plans_v2";
+export const NORMAL_PURCHASE_STORAGE_KEY = "palassh_normal_purchase_allowed_v1";
+
+/**
+ * Returns whether normal / non-subscriber users are allowed to purchase loose flowers.
+ * Defaults to true.
+ * When false, ONLY Weekly and Monthly plan subscribers can purchase loose flowers.
+ */
+export function getNormalPurchaseAllowed(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const saved = localStorage.getItem(NORMAL_PURCHASE_STORAGE_KEY);
+    if (saved !== null) {
+      return saved === "true";
+    }
+  } catch {
+    // Ignore error
+  }
+  return true;
+}
+
+export function saveNormalPurchaseAllowed(allowed: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(NORMAL_PURCHASE_STORAGE_KEY, String(allowed));
+    window.dispatchEvent(new Event("palassh-store-access-updated"));
+    // Background sync to API if available
+    fetch("/api/admin/store-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ normalPurchaseAllowed: allowed }),
+    }).catch(() => {});
+  } catch {
+    // Ignore error
+  }
+}
 
 export function getActivePlansCatalog(): SubscriptionPlan[] {
   if (typeof window === "undefined") return INITIAL_PLANS;
@@ -393,20 +428,39 @@ export function getCurrentCustomerTier(): CustomerTier {
 }
 
 /**
- * Enforces Point #2, #7, and #9:
- * - Normal Days: Normal/One-Day user max 500g combined. Weekly = 2000g, Monthly = 3000g.
+ * Enforces Point #2, #7, and #9 + Store Access Toggle:
+ * - Admin Normal Purchase Toggle: If OFF, non-subscribers (NORMAL / ONE_DAY) CANNOT buy loose flowers.
+ *   Only Weekly & Monthly subscribers can purchase flowers.
  * - Festive Days (from Calendar or Toggle): Normal/One-Day users CANNOT buy direct flowers.
  *   Weekly = max 2000g (2 KG) combined. Monthly = max 3000g (3 KG) combined.
+ * - Normal Days (when toggle is ON): Normal/One-Day user max 500g combined. Weekly = 2000g, Monthly = 3000g.
  */
 export function validateDirectFlowerPurchaseLimit(
   currentCartGramsExcludingThisFlower: number,
   selectedPackGrams: number,
   tier: CustomerTier,
-  isFestiveDay: boolean
+  isFestiveDay: boolean,
+  normalPurchaseAllowedOverride?: boolean
 ): { allowed: boolean; maxGrams: number; reason?: string } {
   const projectedTotal =
     currentCartGramsExcludingThisFlower + selectedPackGrams;
 
+  // 1. Separate Admin Normal User Purchase Control
+  const isNormalAllowed =
+    normalPurchaseAllowedOverride !== undefined
+      ? normalPurchaseAllowedOverride
+      : getNormalPurchaseAllowed();
+
+  if (!isNormalAllowed && tier !== "WEEKLY" && tier !== "MONTHLY") {
+    return {
+      allowed: false,
+      maxGrams: 0,
+      reason:
+        "Non-Subscriber Orders Paused: Loose flower purchases are currently reserved exclusively for Weekly & Monthly subscribers. Please subscribe to a plan to start ordering.",
+    };
+  }
+
+  // 2. Festive Day Rules
   if (isFestiveDay) {
     if (tier === "NORMAL" || tier === "ONE_DAY") {
       return {
@@ -429,7 +483,7 @@ export function validateDirectFlowerPurchaseLimit(
     return { allowed: true, maxGrams: maxFestive };
   }
 
-  // Normal Day Rules
+  // 3. Normal Day Rules
   const maxNormal =
     tier === "MONTHLY" ? 3000 : tier === "WEEKLY" ? 2000 : 500;
 

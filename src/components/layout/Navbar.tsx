@@ -14,6 +14,7 @@ import {
   Sparkles,
   Trash2,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import {
   CartItem,
@@ -24,6 +25,7 @@ import {
   saveStoredCart,
   getCurrentCustomerTier,
   getFestiveModeStatus,
+  getNormalPurchaseAllowed,
 } from "@/features/catalog/types";
 
 export function Navbar() {
@@ -34,6 +36,7 @@ export function Navbar() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>(INITIAL_PLANS);
   const [customerTier, setCustomerTier] = useState("NORMAL");
   const [festiveDay, setFestiveDay] = useState(false);
+  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
 
   useEffect(() => {
     const syncNavbarCart = () => {
@@ -41,6 +44,7 @@ export function Navbar() {
       setPlans(getActivePlansCatalog());
       setCustomerTier(getCurrentCustomerTier());
       setFestiveDay(getFestiveModeStatus().isFestiveDay);
+      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
     };
     syncNavbarCart();
 
@@ -52,6 +56,7 @@ export function Navbar() {
     window.addEventListener("palassh-cart-updated", syncNavbarCart);
     window.addEventListener("palassh-festive-updated", syncNavbarCart);
     window.addEventListener("palassh-plans-updated", syncNavbarCart);
+    window.addEventListener("palassh-store-access-updated", syncNavbarCart);
     window.addEventListener("storage", syncNavbarCart);
     window.addEventListener("palassh-open-cart", handleOpenDrawer);
 
@@ -59,6 +64,7 @@ export function Navbar() {
       window.removeEventListener("palassh-cart-updated", syncNavbarCart);
       window.removeEventListener("palassh-festive-updated", syncNavbarCart);
       window.removeEventListener("palassh-plans-updated", syncNavbarCart);
+      window.removeEventListener("palassh-store-access-updated", syncNavbarCart);
       window.removeEventListener("storage", syncNavbarCart);
       window.removeEventListener("palassh-open-cart", handleOpenDrawer);
     };
@@ -250,6 +256,9 @@ export function Navbar() {
                   <p className="text-[11px] text-emerald-800">
                     {festiveDay
                       ? "Festive Mode Active: Weekly max 2000g, Monthly max 3000g."
+                      : !normalPurchaseAllowed &&
+                        (customerTier === "NORMAL" || customerTier === "ONE_DAY")
+                      ? "Orders Paused: Direct flower purchases are currently open only to Weekly & Monthly subscribers."
                       : "Normal Days Limit: Up to 500g combined for direct orders."}
                   </p>
                 </div>
@@ -318,14 +327,46 @@ export function Navbar() {
                       ₹{totalCartAmount.toLocaleString("en-IN")}
                     </span>
                   </div>
-                  <Link
-                    href="/checkout?mode=onetime"
-                    onClick={() => setIsCartOpen(false)}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 py-4 text-sm font-bold text-white shadow-lg cursor-pointer hover:brightness-105"
-                  >
-                    <span>Proceed to Checkout (6–8 AM Slot)</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  {!normalPurchaseAllowed &&
+                  (customerTier === "NORMAL" || customerTier === "ONE_DAY") ? (
+                    <div className="space-y-2">
+                      <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+                        <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                          <Lock className="h-3.5 w-3.5 text-[#E8502B] shrink-0" />
+                          <span>Subscriber-Only Checkout Active</span>
+                        </p>
+                        <p className="mt-1 text-[11px] text-amber-800">
+                          Loose flower orders are currently reserved for Weekly &amp; Monthly plan members. Subscribe to a plan to complete your order.
+                        </p>
+                      </div>
+                      <Link
+                        href="/#plans"
+                        onClick={(e) => {
+                          setIsCartOpen(false);
+                          if (pathname === "/") {
+                            e.preventDefault();
+                            const el = document.getElementById("plans");
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-amber-600 py-4 text-sm font-bold text-white shadow-lg cursor-pointer hover:brightness-105"
+                      >
+                        <Lock className="h-4 w-4" />
+                        <span>Subscribe to Place Flower Order</span>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/checkout?mode=onetime"
+                      onClick={() => setIsCartOpen(false)}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 py-4 text-sm font-bold text-white shadow-lg cursor-pointer hover:brightness-105"
+                    >
+                      <span>Proceed to Checkout (6–8 AM Slot)</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
