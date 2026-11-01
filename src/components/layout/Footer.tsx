@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Sparkles,
   ArrowUpRight,
-  Leaf,
 } from "lucide-react";
 import {
   INITIAL_PLANS,
@@ -117,13 +116,70 @@ export function Footer() {
                 </div>
               </div>
 
-              <p className="text-sm leading-relaxed text-emerald-100/80 max-w-sm">
-                Farm-fresh Marigold (झेंडू), Chrysanthemum (शेवंती), Red Hibiscus (लाल जास्वंद) & sacred Tulsi plucked at midnight and delivered silently across Thane (400601–400608).
-              </p>
+              {/* Follow Us */}
+              <div className="pt-2 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                  Follow Us
+                </h4>
+                <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 max-w-xs">
+                  <a
+                    href="https://www.youtube.com/@Palassh-Flowers"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-2.5 px-3 transition hover:border-[#E8502B]/40 hover:bg-white/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600/20 text-red-500 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="block text-sm font-semibold text-white group-hover:text-amber-300 transition-colors">
+                          YouTube
+                        </span>
+                        <span className="block text-xs text-stone-400">
+                          @Palassh-Flowers
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-stone-500 group-hover:text-amber-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition" />
+                  </a>
 
-              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/70 px-3.5 py-2 text-xs text-emerald-300 backdrop-blur-xs">
-                <Leaf className="h-4 w-4 text-emerald-400" />
-                <span>100% Plastic-Free Breathable Pouches</span>
+                  <a
+                    href="https://www.instagram.com/palassh_flowers?utm_source=ig_web_button_share_sheet&exln=ZDNlZDc0MzIxNw=="
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-2.5 px-3 transition hover:border-pink-500/40 hover:bg-white/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-600/20 text-pink-400 group-hover:bg-gradient-to-tr group-hover:from-amber-500 group-hover:via-rose-600 group-hover:to-purple-600 group-hover:text-white transition-all">
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="block text-sm font-semibold text-white group-hover:text-amber-300 transition-colors">
+                          Instagram
+                        </span>
+                        <span className="block text-xs text-stone-400">
+                          @palassh_flowers
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-stone-500 group-hover:text-amber-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition" />
+                  </a>
+                </div>
               </div>
             </div>
 
