@@ -67,7 +67,7 @@ export interface CartItem {
   marathiName?: string;
   imageUrl: string;
   weightLabel: string;
-  grams: 100 | 150;
+  grams: number;
   unitPrice: number;
   quantity: 1;
   addonDeliveryDate?: string;

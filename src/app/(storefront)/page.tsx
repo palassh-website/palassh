@@ -153,7 +153,18 @@ const FAQS = [
     q: "How do riders deliver between 6:00 AM – 8:00 AM without disturbing our sleep?",
     a: "We follow a strict Silent Devotion Protocol. Our riders never ring your doorbell or call you in the morning. Your breathable eco-pouch is gently hung on your main door handle.",
   },
-];
+];const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
 
 interface CustomerReview {
   id: string;
@@ -474,6 +485,10 @@ export default function HomePage() {
 
   return (
     <div className="w-full max-w-[100vw] overflow-x-hidden bg-[#FAF6F0]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
       <ScrollProgress />
 
       {/* NON-INTRUSIVE POPUP TOAST */}
