@@ -8,24 +8,46 @@ export interface EnvHealthReport {
   missingKeys: string[];
 }
 
+/**
+ * Strips accidental surrounding quotes (" or ') and whitespace from .env values
+ * so Base64 Basic Auth headers for Razorpay never fail due to formatting.
+ */
+function cleanEnvValue(raw: string | undefined, fallback = ""): string {
+  if (!raw) return fallback;
+  return raw
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+}
+
 export function getEnvConfig() {
+  const keyId = cleanEnvValue(
+    process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+  );
+  const keySecret = cleanEnvValue(process.env.RAZORPAY_KEY_SECRET);
+
   return {
-    DATABASE_URL: process.env.DATABASE_URL || "",
-    JWT_SECRET: process.env.JWT_SECRET || "palassh-dev-fallback-secret-key-2026",
-    ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@palassh.in",
-    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "palassh@2026",
+    DATABASE_URL: cleanEnvValue(process.env.DATABASE_URL),
+    JWT_SECRET: cleanEnvValue(
+      process.env.JWT_SECRET,
+      "palassh-dev-fallback-secret-key-2026"
+    ),
+    ADMIN_EMAIL: cleanEnvValue(process.env.ADMIN_EMAIL, "admin@palassh.in"),
+    ADMIN_PASSWORD: cleanEnvValue(process.env.ADMIN_PASSWORD, "palassh@2026"),
 
     // Hostinger / Gmail / Brevo SMTP
-    SMTP_HOST: process.env.SMTP_HOST || "smtp.hostinger.com",
-    SMTP_PORT: Number(process.env.SMTP_PORT || 465),
-    SMTP_USER: process.env.SMTP_USER || "",
-    SMTP_PASS: process.env.SMTP_PASS || "",
-    SMTP_FROM: process.env.SMTP_FROM || "PALASSH Flowers <care@palassh.com>",
+    SMTP_HOST: cleanEnvValue(process.env.SMTP_HOST, "smtp.hostinger.com"),
+    SMTP_PORT: Number(cleanEnvValue(process.env.SMTP_PORT, "465")),
+    SMTP_USER: cleanEnvValue(process.env.SMTP_USER),
+    SMTP_PASS: cleanEnvValue(process.env.SMTP_PASS),
+    SMTP_FROM: cleanEnvValue(
+      process.env.SMTP_FROM,
+      "PALASSH Flowers <care@palassh.com>"
+    ),
 
-    // Razorpay
-    RAZORPAY_KEY_ID:
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "",
-    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "",
+    // Razorpay (Strictly sanitized)
+    RAZORPAY_KEY_ID: keyId,
+    RAZORPAY_KEY_SECRET: keySecret,
   };
 }
 

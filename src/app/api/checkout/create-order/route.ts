@@ -20,13 +20,16 @@ export async function POST(req: NextRequest) {
       .replace(/\D/g, "")
       .slice(-10);
     const pincode = String(body.pincode || "").trim();
-    const deliveryDate = String(body.startDate || body.deliveryDate || "").trim();
+    const deliveryDate = String(
+      body.startDate || body.deliveryDate || ""
+    ).trim();
 
     if (!email.includes("@") || phone.length !== 10) {
       return NextResponse.json(
         {
           success: false,
-          error: "Valid verified email and 10-digit WhatsApp number are required.",
+          error:
+            "Valid verified email and 10-digit WhatsApp number are required.",
         },
         { status: 400 }
       );
@@ -38,8 +41,15 @@ export async function POST(req: NextRequest) {
       },
       include: {
         subscriptions: {
+          where: { status: "ACTIVE" },
           orderBy: { createdAt: "desc" },
           take: 1,
+          include: {
+            scheduleDays: {
+              where: { status: "SCHEDULED" },
+              orderBy: { deliveryDate: "asc" },
+            },
+          },
         },
       },
     });
@@ -55,28 +65,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Please verify your Email & Phone via the 6-digit OTP code before proceeding to payment.",
+          error:
+            "Please verify your Email & Phone via the 6-digit OTP code before proceeding to payment.",
         },
         { status: 403 }
       );
     }
 
-    // Customer is eligible for ONE_TIME shopping ONLY if they have purchased a plan (activeTier != NORMAL or has past subscription)
-    const resolvedTier = (
-      customer.activeTier && customer.activeTier !== "NORMAL"
-        ? customer.activeTier
-        : customer.subscriptions.length > 0
-        ? "ONE_DAY"
-        : "NORMAL"
-    ) as "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY";
+    const activeSub = customer.subscriptions[0] || null;
+    const resolvedTier: "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY" = activeSub
+      ? activeSub.totalDeliveries >= 15 || activeSub.billingCycle === "month"
+        ? "MONTHLY"
+        : activeSub.totalDeliveries >= 7 || activeSub.billingCycle === "week"
+        ? "WEEKLY"
+        : "ONE_DAY"
+      : "NORMAL";
+
+    const activeSubScheduledDates = activeSub
+      ? activeSub.scheduleDays.map((d) => d.deliveryDate)
+      : [];
 
     const calc = await validateAndCalculateOrderServerSide({
       orderType,
       pincode,
       deliveryDate,
+      customerId: customer.id,
       customerTier: resolvedTier,
+      activeSubScheduledDates,
       planIdOrSlug: body.planId || body.planSlug,
-      weightGrams: Number(body.weightGrams) === 150 ? 150 : 100,
+      weightGrams: Number(body.weightGrams) || 100,
       productVariantId: body.productVariantId,
       defaultFlowers: body.defaultFlowers,
       cartItems: body.cartItems,
@@ -89,10 +106,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const amountInPaise = calc.amountInRupees * 100;
+    // Strict integer paise (Razorpay rejects floats or < 100 paise)
+    const amountInPaise = Math.round(Number(calc.amountInRupees) * 100);
+    if (isNaN(amountInPaise) || amountInPaise < 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid order amount. Minimum payable amount is ₹1.",
+        },
+        { status: 400 }
+      );
+    }
+
     const env = getEnvConfig();
 
+    // 3. Create Real Razorpay Order when Keys are Present
     if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET) {
+      if (!env.RAZORPAY_KEY_ID.startsWith("rzp_")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Invalid RAZORPAY_KEY_ID format ("${env.RAZORPAY_KEY_ID.slice(
+              0,
+              8
+            )}..."). It must start with "rzp_live_" or "rzp_test_".`,
+          },
+          { status: 400 }
+        );
+      }
+
       const authHeader = Buffer.from(
         `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
       ).toString("base64");
@@ -106,7 +148,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           amount: amountInPaise,
           currency: "INR",
-          receipt: `palassh_${Date.now()}`,
+          receipt: `pls_${Date.now()}`,
           notes: {
             traceId,
             customerEmail: email,
@@ -114,19 +156,48 @@ export async function POST(req: NextRequest) {
             orderType,
           },
         }),
+        cache: "no-store",
       });
 
-      const rzpData = await rzpRes.json();
+      const rzpData = await rzpRes.json().catch(() => ({}));
 
       if (!rzpRes.ok || !rzpData.id) {
+        const rzpErrorReason =
+          rzpData?.error?.description ||
+          rzpData?.error?.reason ||
+          rzpData?.error?.code ||
+          `HTTP ${rzpRes.status}`;
+
+        logger.error({
+          module: "RAZORPAY",
+          action: "RAZORPAY_ORDER_CREATE_FAILED",
+          traceId,
+          durationMs: getElapsed(),
+          message: `Razorpay rejected order creation: ${rzpErrorReason}`,
+          meta: {
+            httpStatus: rzpRes.status,
+            keyIdPrefix: env.RAZORPAY_KEY_ID.slice(0, 12),
+            amountInPaise,
+            razorpayError: rzpData?.error || rzpData,
+          },
+        });
+
         return NextResponse.json(
           {
             success: false,
-            error: "Payment gateway initialization failed. Please check Razorpay keys.",
+            error: `Razorpay Error: ${rzpErrorReason}`,
           },
-          { status: 502 }
+          { status: rzpRes.status === 401 ? 401 : 502 }
         );
       }
+
+      logger.info({
+        module: "RAZORPAY",
+        action: "RAZORPAY_ORDER_CREATED",
+        traceId,
+        durationMs: getElapsed(),
+        message: `Created live Razorpay order ${rzpData.id} for ₹${calc.amountInRupees}`,
+      });
 
       return NextResponse.json({
         success: true,
@@ -139,15 +210,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const simulatedOrderId = `order_sim_${Date.now()}`;
-    return NextResponse.json({
-      success: true,
-      traceId,
-      paymentMode: "DEV_SIMULATED",
-      razorpayOrderId: simulatedOrderId,
-      amountInRupees: calc.amountInRupees,
-      amountInPaise,
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Razorpay API keys (NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET) are missing in .env.",
+      },
+      { status: 500 }
+    );
   } catch (err) {
     logger.error(
       {
