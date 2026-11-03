@@ -57,7 +57,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "3. Society Access Responsibility",
-        body: "Customers must ensure that their housing society security permits morning entry for PALASSH delivery partners between 5:00 AM and 8:00 AM.",
+        body: "Customers must ensure that their housing society security permits morning entry for PALASSH delivery partners between 6:00 AM and 8:00 AM.",
       },
     ],
   },
@@ -89,7 +89,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "2. Delivery Timings",
-        body: "All orders (both One-Time Flower Purchases and Subscription Plans) are delivered exclusively in the morning between 5:00 AM and 8:00 AM.",
+        body: "All orders (both One-Time Flower Purchases and Subscription Plans) are delivered exclusively in the morning between 6:00 AM and 8:00 AM.",
       },
       {
         heading: "3. Dispatch Hub Location",
@@ -154,7 +154,7 @@ export default async function LegalPage({
             <div className="flex items-center gap-2 pt-1 text-emerald-900 font-semibold">
               <Clock className="h-4 w-4 text-emerald-700" />
               <span>
-                Morning Delivery Slot: 5:00 AM – 8:00 AM • Evening Modification
+                Morning Delivery Slot: 6:00 AM – 8:00 AM • Evening Modification
                 Cut-off: 8:00 PM
               </span>
             </div>

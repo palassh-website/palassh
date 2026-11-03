@@ -20,7 +20,7 @@ export function getEnvConfig() {
     SMTP_PORT: Number(process.env.SMTP_PORT || 465),
     SMTP_USER: process.env.SMTP_USER || "",
     SMTP_PASS: process.env.SMTP_PASS || "",
-    SMTP_FROM: process.env.SMTP_FROM || "PALASSH Flowers <care@palassh.in>",
+    SMTP_FROM: process.env.SMTP_FROM || "PALASSH Flowers <care@palassh.com>",
 
     // Razorpay
     RAZORPAY_KEY_ID:

@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
               Admin Portal Login
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100/75">
-              Manage 5:00 AM – 8:00 AM Dispatch, Flower Catalog & Subscription
+              Manage 6:00 AM – 8:00 AM Dispatch, Flower Catalog & Subscription
               Pricing
             </p>
           </div>

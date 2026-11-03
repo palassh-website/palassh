@@ -9,10 +9,8 @@ import {
   Trash2,
   CheckCircle2,
   PauseCircle,
-  Clock,
   MapPin,
   IndianRupee,
-  PackageCheck,
   Sparkles,
   ExternalLink,
   RotateCcw,
@@ -22,239 +20,166 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Unlock,
+  Layers,
+  Download,
+  Mail,
+  Phone,
+  Scale,
 } from "lucide-react";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 import {
   FlowerProduct,
   INITIAL_FLOWERS,
   INITIAL_PLANS,
+  PLAN_PRODUCT_VARIANTS,
   SubscriptionPlan,
-  CATALOG_STORAGE_KEY,
+  PlanProductVariant,
   FESTIVE_MODE_STORAGE_KEY,
   getActiveFlowersCatalog,
+  saveActiveFlowersCatalog,
   getActivePlansCatalog,
   saveActivePlansCatalog,
+  getActivePlanVariants,
+  saveActivePlanVariants,
+  getAvailableWeightsForVariants,
   getFestiveModeStatus,
   getFestiveDatesList,
   saveFestiveDatesList,
+  getEarliestDeliveryDateString,
   getTomorrowDateString,
-  getNormalPurchaseAllowed,
-  saveNormalPurchaseAllowed,
 } from "@/features/catalog/types";
 
 interface DispatchRow {
   orderId: string;
   customerName: string;
+  phone: string;
+  email?: string;
   societyAndFlat: string;
   slot: string;
-  orderType: "SUBSCRIPTION" | "ONE_TIME";
+  orderType: "SUBSCRIPTION" | "ADD_ON_ONLY";
+  planTitle?: string;
+  dayNumber?: number;
   todaysFlowers: string;
+  addOnFlowers?: string; // Shows e.g. "150g Mixed Shevanti (#PLS-ADDON-...)" or "-"
   deliveryNote: string;
   status: "DISPATCH_READY" | "PAUSED_TODAY";
 }
 
-const DEMO_DISPATCH_LIST: DispatchRow[] = [
-  {
-    orderId: "PLS-SUB-849201",
-    customerName: "Snehal Deshmukh",
-    societyAndFlat: "B-1204, Hiranandani Estate, Thane West - 400607",
-    slot: "6:00 AM – 8:00 AM",
-    orderType: "SUBSCRIPTION",
-    todaysFlowers: "Mixed Sacred Box (Marigold, Chrysanthemum & Red Hibiscus)",
-    deliveryNote: "Hang pouch on main door handle (Do not ring bell)",
-    status: "DISPATCH_READY",
-  },
-  {
-    orderId: "PLS-SUB-739104",
-    customerName: "Mrs. Anjali Joshi",
-    societyAndFlat: "A-902, Rustomjee Urbania, Thane West - 400601",
-    slot: "6:00 AM – 8:00 AM",
-    orderType: "SUBSCRIPTION",
-    todaysFlowers: "Only Red Hibiscus (लाल जास्वंद)",
-    deliveryNote: "Place inside wooden basket outside door",
-    status: "DISPATCH_READY",
-  },
-  {
-    orderId: "PLS-SUB-619823",
-    customerName: "Siddharth Nair",
-    societyAndFlat: "C-404, Glenmark Residency, Kharegaon, Kalwa - 400605",
-    slot: "6:00 AM – 8:00 AM",
-    orderType: "SUBSCRIPTION",
-    todaysFlowers: "Marigold + Chrysanthemum Mix",
-    deliveryNote: "Paused before 8 PM (Out of station)",
-    status: "PAUSED_TODAY",
-  },
-];
-
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<
-    "DISPATCH" | "FLOWERS" | "PRICING" | "FESTIVE_CALENDAR"
+    "DISPATCH" | "PLAN_MATRIX" | "FLOWERS" | "FESTIVE_CALENDAR"
   >("DISPATCH");
+
   const [flowers, setFlowers] = useState<FlowerProduct[]>(INITIAL_FLOWERS);
   const [plans, setPlans] = useState<SubscriptionPlan[]>(INITIAL_PLANS);
-  const [dispatchRows, setDispatchRows] =
-    useState<DispatchRow[]>(DEMO_DISPATCH_LIST);
+  const [planVariants, setPlanVariants] = useState<PlanProductVariant[]>(
+    PLAN_PRODUCT_VARIANTS
+  );
+
+  const [dispatchDate, setDispatchDate] = useState<string>(() =>
+    getTomorrowDateString()
+  );
+  const [dispatchRows, setDispatchRows] = useState<DispatchRow[]>([]);
+  const [isLoadingDispatch, setIsLoadingDispatch] = useState<boolean>(true);
+  const [isEmailingCsv, setIsEmailingCsv] = useState<boolean>(false);
+
   const [festiveMode, setFestiveMode] = useState({
     isFestiveDay: false,
     festivalName: "Festive Puja",
   });
   const [festiveDates, setFestiveDates] = useState<string[]>([]);
-  const [normalPurchaseAllowed, setNormalPurchaseAllowed] = useState(true);
   const [toast, setToast] = useState<string>("");
 
-  // Month-Wise Calendar State (Point #5)
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // New Flower Form State (English + Marathi + Photo Upload)
+  const [customNewWeightGrams, setCustomNewWeightGrams] = useState<string>("");
+
+  const [newVarName, setNewVarName] = useState("");
+  const [newVarMarathi, setNewVarMarathi] = useState("");
+  const [newVarImage, setNewVarImage] = useState("/images/merigold.jpeg");
+  const [isUploadingVarPhoto, setIsUploadingVarPhoto] = useState(false);
+  const [varPhotoStatus, setVarPhotoStatus] = useState("");
+  const [newVarDay100, setNewVarDay100] = useState(49);
+  const [newVarWeek100, setNewVarWeek100] = useState(329);
+  const [newVarMonth100, setNewVarMonth100] = useState(1349);
+  const [newVarDay150, setNewVarDay150] = useState(65);
+  const [newVarWeek150, setNewVarWeek150] = useState(439);
+  const [newVarMonth150, setNewVarMonth150] = useState(1829);
+
+  const [newPlanTitle, setNewPlanTitle] = useState("");
+  const [newPlanDeliveries, setNewPlanDeliveries] = useState(60);
+  const [newPlanBasePrice, setNewPlanBasePrice] = useState(2399);
+
   const [newFlowerName, setNewFlowerName] = useState("");
   const [newFlowerMarathi, setNewFlowerMarathi] = useState("");
   const [newFlowerSubtitle, setNewFlowerSubtitle] = useState("");
   const [newFlowerImage, setNewFlowerImage] = useState("/images/merigold.jpeg");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadStatusNote, setUploadStatusNote] = useState("");
-  const [newFlowerDeity, setNewFlowerDeity] = useState(
-    "All Daily Puja Rituals"
-  );
-  const [price100g, setPrice100g] = useState(40);
-  const [price250g, setPrice250g] = useState(95);
-  const [price500g, setPrice500g] = useState(180);
-  const [price1000g, setPrice1000g] = useState(340);
+  const [price100g, setPrice100g] = useState(45);
+  const [price150g, setPrice150g] = useState(55);
+
+  const loadLiveDispatchForDate = async (targetDate: string) => {
+    setIsLoadingDispatch(true);
+    try {
+      const res = await fetch(
+        `/api/admin/dispatch?date=${encodeURIComponent(targetDate)}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.dispatchRows)) {
+        setDispatchRows(data.dispatchRows);
+        if (data.targetDate) setDispatchDate(data.targetDate);
+      } else {
+        setDispatchRows([]);
+      }
+    } catch {
+      setDispatchRows([]);
+    } finally {
+      setIsLoadingDispatch(false);
+    }
+  };
 
   useEffect(() => {
     setFlowers(getActiveFlowersCatalog());
     setFestiveDates(getFestiveDatesList());
     setFestiveMode(getFestiveModeStatus());
     setPlans(getActivePlansCatalog());
-    setNormalPurchaseAllowed(getNormalPurchaseAllowed());
+    setPlanVariants(getActivePlanVariants());
 
-    const syncStoreAccess = () => {
-      setNormalPurchaseAllowed(getNormalPurchaseAllowed());
+    void loadLiveDispatchForDate(dispatchDate);
+
+    const syncAll = () => {
+      setPlans(getActivePlansCatalog());
+      setPlanVariants(getActivePlanVariants());
       setFestiveMode(getFestiveModeStatus());
     };
-    window.addEventListener("palassh-store-access-updated", syncStoreAccess);
-    window.addEventListener("palassh-festive-updated", syncStoreAccess);
-
-    try {
-      const liveRows: DispatchRow[] = [];
-      const savedSubRaw = localStorage.getItem("palassh_active_subscription");
-      if (savedSubRaw) {
-        const sub = JSON.parse(savedSubRaw);
-        const firstDay = sub.schedule?.[0];
-        const isPausedToday =
-          sub.status === "PAUSED" ||
-          sub.status === "CANCELLED" ||
-          firstDay?.status === "PAUSED";
-        liveRows.push({
-          orderId: sub.orderId,
-          customerName: sub.customerName,
-          societyAndFlat: sub.address,
-          slot: "6:00 AM – 8:00 AM",
-          orderType: "SUBSCRIPTION",
-          todaysFlowers:
-            firstDay?.assignedFlower ||
-            sub.defaultFlowers ||
-            "Mixed Sacred Box",
-          deliveryNote: sub.deliveryNote,
-          status: isPausedToday ? "PAUSED_TODAY" : "DISPATCH_READY",
-        });
-      }
-
-      const savedOneTimeRaw = localStorage.getItem("palassh_onetime_orders");
-      if (savedOneTimeRaw) {
-        const otList = JSON.parse(savedOneTimeRaw);
-        if (Array.isArray(otList)) {
-          otList.forEach((ord) => {
-            liveRows.push({
-              orderId: ord.orderId,
-              customerName: ord.customerName || "Direct Customer",
-              societyAndFlat: ord.address,
-              slot: "6:00 AM – 8:00 AM",
-              orderType: "ONE_TIME",
-              todaysFlowers: ord.flowerSummary,
-              deliveryNote: ord.deliveryNote || "Silent Doorstep Drop",
-              status: "DISPATCH_READY",
-            });
-          });
-        }
-      }
-
-      if (liveRows.length > 0) {
-        setDispatchRows([...liveRows, ...DEMO_DISPATCH_LIST.slice(1)]);
-      }
-    } catch {
-      // Ignore error
-    }
+    window.addEventListener("palassh-plans-updated", syncAll);
+    window.addEventListener("palassh-festive-updated", syncAll);
 
     return () => {
-      window.removeEventListener("palassh-store-access-updated", syncStoreAccess);
-      window.removeEventListener("palassh-festive-updated", syncStoreAccess);
+      window.removeEventListener("palassh-plans-updated", syncAll);
+      window.removeEventListener("palassh-festive-updated", syncAll);
     };
   }, []);
 
   const showNotice = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(""), 4500);
+    setTimeout(() => setToast(""), 5000);
   };
 
-  // Toggle Normal Customer Direct Flower Purchases (Point #New: Separate from Festive)
-  const handleToggleNormalPurchase = () => {
-    const nextState = !normalPurchaseAllowed;
-    setNormalPurchaseAllowed(nextState);
-    saveNormalPurchaseAllowed(nextState);
-    showNotice(
-      nextState
-        ? "Normal Shopping ENABLED: Non-subscribers can now purchase loose flowers up to 500g."
-        : "Normal Shopping PAUSED: Loose flower orders are now locked exclusively for Weekly & Monthly subscribers!"
-    );
-  };
-
-  // Toggle Manual Festive Mode
-  const handleToggleFestiveMode = () => {
-    const nextState = !festiveMode.isFestiveDay;
-    const updated = {
-      isFestiveDay: nextState,
-      festivalName: "Festive Day Override",
-    };
-    localStorage.setItem(FESTIVE_MODE_STORAGE_KEY, JSON.stringify(updated));
-    setFestiveMode(getFestiveModeStatus());
-    window.dispatchEvent(new Event("palassh-festive-updated"));
-    showNotice(
-      nextState
-        ? "Festive Day Mode ON: Direct flower sales locked for non-subscribers; Weekly (2KG) & Monthly (3KG) limits active!"
-        : "Festive Manual Toggle OFF."
-    );
-  };
-
-  // Toggle a specific YYYY-MM-DD date in the Festive Calendar (Point #5)
-  const handleToggleCalendarDate = (dateStr: string) => {
-    const exists = festiveDates.includes(dateStr);
-    const updated = exists
-      ? festiveDates.filter((d) => d !== dateStr)
-      : [...festiveDates, dateStr].sort();
-
-    setFestiveDates(updated);
-    saveFestiveDatesList(updated);
-    setFestiveMode(getFestiveModeStatus());
-    showNotice(
-      exists
-        ? `Removed ${dateStr} from Festive Calendar.`
-        : `Marked ${dateStr} as a Festive Day! Storefront rules will automatically enforce on this date.`
-    );
-  };
-
-  // Direct Browser-to-Cloudinary Photo Upload with Instant Base64 Fallback
-  const handlePhotoFileSelect = async (
-    e: React.ChangeEvent<HTMLInputElement>
+  // Optimized Cloudinary Uploader: Injects f_auto,q_auto,w_800 so 25 monthly credits NEVER run out
+  const uploadPhotoToCloudinaryOrDataUrl = async (
+    file: File,
+    onLoading: (b: boolean) => void,
+    onNote: (s: string) => void,
+    onResultUrl: (url: string) => void
   ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingImage(true);
-    setUploadStatusNote("Uploading photo...");
+    onLoading(true);
+    onNote("Uploading photo...");
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -274,13 +199,18 @@ export default function AdminDashboardPage() {
         );
         const data = await res.json();
         if (data.secure_url) {
-          setNewFlowerImage(data.secure_url);
-          setUploadStatusNote("Uploaded to Cloudinary CDN!");
-          setIsUploadingImage(false);
+          // Inject automatic WebP/AVIF & 800px resize transformation to save 85% bandwidth credits
+          const optimizedUrl = String(data.secure_url).replace(
+            "/upload/",
+            "/upload/f_auto,q_auto,w_800/"
+          );
+          onResultUrl(optimizedUrl);
+          onNote("Uploaded to Cloudinary CDN (Auto-WebP Optimized)!");
+          onLoading(false);
           return;
         }
       } catch {
-        // Fallback to local resized DataURL
+        // Fallback to local compressed DataURL
       }
     }
 
@@ -292,7 +222,6 @@ export default function AdminDashboardPage() {
         const maxDim = 640;
         let width = img.width;
         let height = img.height;
-
         if (width > height && width > maxDim) {
           height = Math.round((height * maxDim) / width);
           width = maxDim;
@@ -300,21 +229,337 @@ export default function AdminDashboardPage() {
           width = Math.round((width * maxDim) / height);
           height = maxDim;
         }
-
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        setNewFlowerImage(dataUrl);
-        setUploadStatusNote("Photo ready for storefront!");
-        setIsUploadingImage(false);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.84);
+        onResultUrl(dataUrl);
+        onNote("Photo compressed & ready!");
+        onLoading(false);
       };
       img.src = String(event.target?.result);
     };
     reader.readAsDataURL(file);
   };
 
+  const availableWeights = getAvailableWeightsForVariants(planVariants);
+
+  const getVariantPriceForPlan = (
+    variant: PlanProductVariant,
+    weightGrams: number,
+    plan: SubscriptionPlan
+  ): number => {
+    const wObj = variant.pricing[weightGrams] || variant.pricing[100] || {};
+    const exactEntry = wObj[plan.id] || wObj[plan.billingCycle];
+    if (exactEntry && typeof exactEntry.price === "number") {
+      return exactEntry.price;
+    }
+    const basePerDay = wObj.month?.perDay || 42;
+    return Math.round(basePerDay * (plan.deliveriesCount || 30));
+  };
+
+  const handleUpdateVariantMatrixPrice = (
+    variantId: string,
+    weightGrams: number,
+    plan: SubscriptionPlan,
+    newPrice: number
+  ) => {
+    const daysCount = Math.max(1, plan.deliveriesCount || 1);
+    const perDay = Math.max(1, Math.round(newPrice / daysCount));
+
+    const updated = planVariants.map((v) => {
+      if (v.id !== variantId) return v;
+      const currentWeightObj = v.pricing[weightGrams] || {};
+      const nextWeightObj: Record<
+        string,
+        { price: number; perDay: number }
+      > = {
+        ...currentWeightObj,
+        [plan.id]: { price: newPrice, perDay },
+      };
+      if (
+        plan.id === "plan-daily" ||
+        plan.id === "plan-weekly" ||
+        plan.id === "plan-monthly"
+      ) {
+        nextWeightObj[plan.billingCycle] = { price: newPrice, perDay };
+      }
+
+      return {
+        ...v,
+        pricing: {
+          ...v.pricing,
+          [weightGrams]: nextWeightObj,
+        },
+      };
+    });
+
+    setPlanVariants(updated);
+    saveActivePlanVariants(updated);
+    showNotice(
+      `Updated ${weightGrams}g • ${plan.title} price to ₹${newPrice} in MySQL!`
+    );
+  };
+
+  const handleAddWeightTierToPlans = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newWt = Number(customNewWeightGrams);
+    if (isNaN(newWt) || newWt < 50 || newWt > 5000) {
+      showNotice("Please enter a valid weight in grams (e.g., 200, 250, 500).");
+      return;
+    }
+    if (availableWeights.includes(newWt)) {
+      showNotice(`${newWt}g weight tier already exists in the matrix.`);
+      return;
+    }
+
+    const ratio = newWt / 100;
+    const updated = planVariants.map((v) => {
+      const base100 = v.pricing[100] || PLAN_PRODUCT_VARIANTS[0].pricing[100];
+      const newTierMap: Record<string, { price: number; perDay: number }> = {};
+
+      plans.forEach((pl) => {
+        const basePrice100 = getVariantPriceForPlan(v, 100, pl);
+        const scaledPrice = Math.round(basePrice100 * ratio);
+        const perDay = Math.max(
+          1,
+          Math.round(scaledPrice / Math.max(1, pl.deliveriesCount))
+        );
+        newTierMap[pl.id] = { price: scaledPrice, perDay };
+        newTierMap[pl.billingCycle] = { price: scaledPrice, perDay };
+      });
+
+      if (!newTierMap.day) {
+        const p = Math.round((base100.day?.price || 45) * ratio);
+        newTierMap.day = { price: p, perDay: p };
+      }
+      if (!newTierMap.week) {
+        const p = Math.round((base100.week?.price || 299) * ratio);
+        newTierMap.week = { price: p, perDay: Math.round(p / 7) };
+      }
+      if (!newTierMap.month) {
+        const p = Math.round((base100.month?.price || 1249) * ratio);
+        newTierMap.month = { price: p, perDay: Math.round(p / 30) };
+      }
+
+      return {
+        ...v,
+        pricing: {
+          ...v.pricing,
+          [newWt]: newTierMap,
+        },
+      };
+    });
+
+    setPlanVariants(updated);
+    saveActivePlanVariants(updated);
+    setCustomNewWeightGrams("");
+    showNotice(
+      `Added ${newWt} gms weight column across all plans & varieties!`
+    );
+  };
+
+  const handleRemoveWeightTier = (wtToRemove: number) => {
+    if (availableWeights.length <= 1) return;
+    const updated = planVariants.map((v) => {
+      const copy = { ...v.pricing };
+      delete copy[wtToRemove];
+      return { ...v, pricing: copy };
+    });
+    setPlanVariants(updated);
+    saveActivePlanVariants(updated);
+    showNotice(`Removed ${wtToRemove}g weight tier from plans.`);
+  };
+
+  const handleAddPlanVariant = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVarName.trim()) return;
+
+    const slug = newVarName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-");
+
+    const pricingByWeight: Record<
+      number,
+      Record<string, { price: number; perDay: number }>
+    > = {};
+
+    availableWeights.forEach((wt) => {
+      const is150 = wt === 150;
+      const ratio = wt / 100;
+      const dPrice = is150
+        ? Number(newVarDay150)
+        : Math.round(Number(newVarDay100) * ratio);
+      const wPrice = is150
+        ? Number(newVarWeek150)
+        : Math.round(Number(newVarWeek100) * ratio);
+      const mPrice = is150
+        ? Number(newVarMonth150)
+        : Math.round(Number(newVarMonth100) * ratio);
+
+      const planMap: Record<string, { price: number; perDay: number }> = {
+        day: { price: dPrice, perDay: dPrice },
+        week: { price: wPrice, perDay: Math.round(wPrice / 7) },
+        month: { price: mPrice, perDay: Math.round(mPrice / 30) },
+      };
+
+      plans.forEach((pl) => {
+        if (pl.deliveriesCount === 1) {
+          planMap[pl.id] = { price: dPrice, perDay: dPrice };
+        } else if (pl.deliveriesCount === 7) {
+          planMap[pl.id] = { price: wPrice, perDay: Math.round(wPrice / 7) };
+        } else if (pl.deliveriesCount === 30) {
+          planMap[pl.id] = { price: mPrice, perDay: Math.round(mPrice / 30) };
+        } else {
+          const perDay = Math.round(mPrice / 30);
+          const customTotal = perDay * pl.deliveriesCount;
+          planMap[pl.id] = { price: customTotal, perDay };
+        }
+      });
+
+      pricingByWeight[wt] = planMap;
+    });
+
+    const newVariant: PlanProductVariant = {
+      id: `prod-${slug}-${Date.now()}`,
+      srNo: planVariants.length + 1,
+      name: newVarName.trim(),
+      marathiName: newVarMarathi.trim() || "पूजा फुले",
+      subtitle: "Fresh Farm-Plucked Morning Puja Blooms",
+      imageUrl: newVarImage.trim() || "/images/merigold.jpeg",
+      pricing: pricingByWeight,
+    };
+
+    const updated = [...planVariants, newVariant];
+    setPlanVariants(updated);
+    saveActivePlanVariants(updated);
+    setNewVarName("");
+    setNewVarMarathi("");
+    setVarPhotoStatus("");
+    showNotice(
+      `Added "${newVariant.name}" with photo & pricing across all plans!`
+    );
+  };
+
+  const handleRemovePlanVariant = (id: string, name: string) => {
+    if (planVariants.length <= 1) return;
+    const updated = planVariants
+      .filter((v) => v.id !== id)
+      .map((v, idx) => ({ ...v, srNo: idx + 1 }));
+    setPlanVariants(updated);
+    saveActivePlanVariants(updated);
+    showNotice(`Removed "${name}" from Plan Varieties.`);
+  };
+
+  const handleAddCustomPlan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlanTitle.trim()) return;
+
+    const slug = newPlanTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-");
+    const count = Math.max(1, Number(newPlanDeliveries) || 60);
+    const price = Math.max(1, Number(newPlanBasePrice) || 2399);
+    const perDay = Math.max(1, Math.round(price / count));
+    const newPlanId = `plan-${slug}-${Date.now()}`;
+
+    const createdPlan: SubscriptionPlan = {
+      id: newPlanId,
+      slug,
+      title: newPlanTitle.trim(),
+      subtitle: `${count} sacred mornings across all flower varieties with 1-Day Farm Buffer.`,
+      price,
+      perDayEffectivePrice: perDay,
+      billingCycle: count === 1 ? "day" : count <= 7 ? "week" : "month",
+      deliveriesCount: count,
+      pouchWeight: availableWeights.map((w) => `${w}g`).join(" / "),
+      mixedPredefinedBreakdown: "100g Mixed Marigold (मिक्स झेंडू)",
+      badge: `${count} Mornings Plan`,
+      isPopular: false,
+      imageUrl: "/images/plan-monthly.jpg",
+      flowersIncluded: ["All Sacred Flower Varieties Available"],
+      shortHighlights: [
+        `${count} Morning Deliveries (From ₹${perDay}/day)`,
+        `Available in ${availableWeights.map((w) => `${w}g`).join(", ")} Pouches`,
+        "Unlocks Daily 100g / 150g Add-On Flower Shopping",
+      ],
+      features: [
+        "6:00 AM – 8:00 AM Silent Doorstep Drop",
+        "1-Day Farm Harvest Buffer for Zero Cold-Storage Freshness",
+        "Unlocks Subscriber Add-On Flower Store (100g / 150g)",
+      ],
+      festiveMaxGramsLimit: 150,
+    };
+
+    const updatedVariants = planVariants.map((v) => {
+      const nextPricing = { ...v.pricing };
+      availableWeights.forEach((wt) => {
+        const wObj = { ...(nextPricing[wt] || {}) };
+        const baseMonthPerDay =
+          wObj.month?.perDay || Math.round(price / count);
+        const autoPrice = Math.round(baseMonthPerDay * count * (wt / 100));
+        wObj[newPlanId] = {
+          price: autoPrice,
+          perDay: Math.max(1, Math.round(autoPrice / count)),
+        };
+        nextPricing[wt] = wObj;
+      });
+      return { ...v, pricing: nextPricing };
+    });
+
+    const updatedPlans = [...plans, createdPlan];
+    setPlans(updatedPlans);
+    setPlanVariants(updatedVariants);
+    saveActivePlansCatalog(updatedPlans);
+    saveActivePlanVariants(updatedVariants);
+
+    setNewPlanTitle("");
+    showNotice(
+      `Published "${createdPlan.title}"! Its editable price columns are now live in the table above.`
+    );
+  };
+
+  const handleRemovePlan = (id: string, title: string) => {
+    if (plans.length <= 1) return;
+    const updated = plans.filter((p) => p.id !== id);
+    setPlans(updated);
+    saveActivePlansCatalog(updated);
+    showNotice(`Removed plan "${title}".`);
+  };
+
+  const handleToggleFestiveMode = () => {
+    const nextState = !festiveMode.isFestiveDay;
+    const updated = {
+      isFestiveDay: nextState,
+      festivalName: "Festive Day Override",
+    };
+    localStorage.setItem(FESTIVE_MODE_STORAGE_KEY, JSON.stringify(updated));
+    setFestiveMode(getFestiveModeStatus());
+    window.dispatchEvent(new Event("palassh-festive-updated"));
+    showNotice(
+      nextState ? "Festive Day Mode ON!" : "Festive Manual Toggle OFF."
+    );
+  };
+
+  const handleToggleCalendarDate = (dateStr: string) => {
+    const exists = festiveDates.includes(dateStr);
+    const updated = exists
+      ? festiveDates.filter((d) => d !== dateStr)
+      : [...festiveDates, dateStr].sort();
+    setFestiveDates(updated);
+    saveFestiveDatesList(updated);
+    setFestiveMode(getFestiveModeStatus());
+    showNotice(
+      exists
+        ? `Removed ${dateStr} from Festive Calendar.`
+        : `Marked ${dateStr} as a Festive Day in MySQL!`
+    );
+  };
+
+  // Add Member Add-On Flower (Strictly 100g & 150g Packs)
   const handleAddFlower = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFlowerName.trim()) return;
@@ -338,24 +583,21 @@ export default function AdminDashboardPage() {
       unitType: "WEIGHT",
       availableWeights: [
         { label: "100g", grams: 100, price: Number(price100g) },
-        { label: "250g", grams: 250, price: Number(price250g) },
-        { label: "500g", grams: 500, price: Number(price500g) },
-        { label: "1000g", grams: 1000, price: Number(price1000g) },
+        { label: "150g", grams: 150, price: Number(price150g) },
       ],
       inStock: true,
-      deityAffinity: newFlowerDeity.trim() || "All Daily Puja Rituals",
+      deityAffinity: "All Daily Puja Rituals",
     };
 
     const updated = [...flowers, newFlower];
     setFlowers(updated);
-    localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(updated));
-
+    saveActiveFlowersCatalog(updated);
     setNewFlowerName("");
     setNewFlowerMarathi("");
     setNewFlowerSubtitle("");
     setUploadStatusNote("");
     showNotice(
-      `Added "${newFlower.name} (${newFlower.marathiName})" to Live Catalog!`
+      `Added "${newFlower.name} (${newFlower.marathiName})" (100g & 150g) to Subscriber Add-On Catalog!`
     );
   };
 
@@ -364,49 +606,51 @@ export default function AdminDashboardPage() {
       f.id === id ? { ...f, inStock: !f.inStock } : f
     );
     setFlowers(updated);
-    localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(updated));
-    showNotice("Updated flower availability status.");
+    saveActiveFlowersCatalog(updated);
+    showNotice("Updated flower stock status in MySQL.");
   };
 
   const handleRemoveFlower = (id: string, name: string) => {
-    if (flowers.length <= 1) {
-      alert("At least 1 flower must remain in the catalog.");
-      return;
-    }
+    if (flowers.length <= 1) return;
     const updated = flowers.filter((f) => f.id !== id);
     setFlowers(updated);
-    localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(updated));
-    showNotice(`Removed "${name}" from the flower catalog.`);
+    saveActiveFlowersCatalog(updated);
+    showNotice(`Removed "${name}" from Add-On Flower Catalog.`);
   };
 
-  const handleResetCatalog = () => {
+  const handleResetAllDefaults = () => {
     setFlowers(INITIAL_FLOWERS);
-    localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(INITIAL_FLOWERS));
-    showNotice("Reset catalog to default Marigold, Chrysanthemum & Red Hibiscus.");
+    saveActiveFlowersCatalog(INITIAL_FLOWERS);
+    setPlans(INITIAL_PLANS);
+    saveActivePlansCatalog(INITIAL_PLANS);
+    setPlanVariants(PLAN_PRODUCT_VARIANTS);
+    saveActivePlanVariants(PLAN_PRODUCT_VARIANTS);
+    showNotice(
+      "Reset Plans & 7 Flower Varieties to Client Excel Sheet Defaults (100g & 150g)!"
+    );
   };
 
-  const handleUpdatePlanPrice = (planId: string, newPrice: number) => {
-    const updated = plans.map((p) => {
-      if (p.id !== planId) return p;
-      const count = p.deliveriesCount || 1;
-      const perDay = Math.round(newPrice / count);
-      return {
-        ...p,
-        price: newPrice,
-        perDayEffectivePrice: perDay,
-        shortHighlights: p.shortHighlights?.map((sh) =>
-          sh.includes("effective") || sh.includes("/morning")
-            ? `${count} Morning Deliveries (₹${perDay}/morning)`
-            : sh
-        ),
-      };
-    });
-    setPlans(updated);
-    saveActivePlansCatalog(updated);
-    showNotice(`Updated plan pricing across the entire site.`);
+  const handleEmailCsvToAdmin = async () => {
+    setIsEmailingCsv(true);
+    try {
+      const res = await fetch("/api/admin/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dispatchDate }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showNotice(data.message);
+      } else {
+        showNotice(data.error || "Could not email CSV. Check SMTP settings.");
+      }
+    } catch {
+      showNotice("Network error while emailing CSV.");
+    } finally {
+      setIsEmailingCsv(false);
+    }
   };
 
-  // Generate calendar grid for current `calendarMonth`
   const renderCalendarDays = () => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
@@ -428,77 +672,54 @@ export default function AdminDashboardPage() {
   const activeDeliveriesCount = dispatchRows.filter(
     (r) => r.status === "DISPATCH_READY"
   ).length;
+  const activeAddOnsCount = dispatchRows.filter(
+    (r) => r.addOnFlowers && r.addOnFlowers !== "-"
+  ).length;
 
   return (
     <FeatureBoundary featureName="ADMIN_DASHBOARD">
-      <div className="min-h-screen bg-[#FAF7F2] pb-20">
-        {/* Top Admin Header Bar */}
-        <header className="bg-[#071C15] border-b border-emerald-900 px-4 py-6 sm:px-6 lg:px-8 text-white">
+      <div className="min-h-screen bg-[#FAF6F0] pb-20">
+        <header className="bg-[#1C1917] border-b border-stone-800 px-4 py-6 sm:px-6 lg:px-8 text-white">
           <div className="mx-auto max-w-7xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-950 border border-amber-400/30 px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-300">
-                <Sparkles className="h-3 w-3 text-[#F05A36]" />
-                <span>PALASSH Operations Command Center</span>
+              <div className="inline-flex items-center gap-2 rounded-full bg-stone-900 border border-stone-700 px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest text-[#F5D0A9]">
+                <Sparkles className="h-3 w-3 text-[#D95326]" />
+                <span>PALASSH Live Operations Center</span>
               </div>
-              <h1 className="mt-1.5 font-serif text-3xl font-bold text-white">
-                Morning 6–8 AM Dispatch & Festive Admin
+              <h1 className="mt-1.5 font-serif text-2xl sm:text-3xl font-bold text-white">
+                Morning 6–8 AM Dispatch, Add-Ons & Plan Matrix
               </h1>
-              <p className="text-xs text-emerald-200/80">
-                Hub: Kalwa, Thane (400605) • Serviceable Pincodes: 400601 to 400608
+              <p className="text-xs text-stone-400">
+                100% Live MySQL Data • Includes Subscriber Add-On Column (100g /
+                150g) & Midnight Excel Export
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Normal Customer Shopping Toggle */}
-              <button
-                type="button"
-                onClick={handleToggleNormalPurchase}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
-                  normalPurchaseAllowed
-                    ? "border border-emerald-600 bg-emerald-950 text-emerald-200 hover:bg-emerald-900"
-                    : "bg-[#E8502B] text-white shadow-lg ring-2 ring-orange-400/50"
-                }`}
-                title="When OFF, loose flowers can only be purchased by Weekly & Monthly subscribers"
-              >
-                {normalPurchaseAllowed ? (
-                  <>
-                    <Unlock className="h-4 w-4 text-emerald-400" />
-                    <span>Normal Orders: ON (Public)</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-4 w-4 text-amber-300" />
-                    <span>Normal Orders: OFF (Subscribers Only)</span>
-                  </>
-                )}
-              </button>
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-stone-800 border border-stone-700 px-3.5 py-2.5 text-xs font-bold text-[#F5D0A9]">
+                <Lock className="h-3.5 w-3.5 text-[#D95326]" />
+                <span>Add-Ons: Weekly/Monthly Subscribers Only</span>
+              </span>
 
               <button
                 type="button"
                 onClick={handleToggleFestiveMode}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
                   festiveMode.isFestiveDay
-                    ? "bg-amber-400 text-stone-950 shadow-lg"
-                    : "border border-emerald-700 bg-emerald-950 text-emerald-200 hover:bg-emerald-900"
+                    ? "bg-[#D95326] text-white shadow-sm"
+                    : "border border-stone-700 bg-stone-900 text-stone-300 hover:bg-stone-800"
                 }`}
               >
-                <Flame className="h-4 w-4 text-[#E8502B]" />
+                <Flame className="h-4 w-4 text-[#F5D0A9]" />
                 <span>
-                  Festive Status: {festiveMode.isFestiveDay ? "ACTIVE" : "NORMAL"}
+                  Festive Status:{" "}
+                  {festiveMode.isFestiveDay ? "ACTIVE" : "NORMAL"}
                 </span>
               </button>
 
               <Link
-                href="/products"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-700 bg-emerald-950 px-4 py-2.5 text-xs font-bold text-amber-200"
-              >
-                <span>All Products Page</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
-
-              <Link
                 href="/"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#E8502B] to-[#D97706] px-4 py-2.5 text-xs font-bold text-white shadow-md"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#D95326] hover:bg-[#BA421B] px-4 py-2.5 text-xs font-bold text-white shadow-sm"
               >
                 <span>Storefront</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -510,269 +731,939 @@ export default function AdminDashboardPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
           {/* Quick KPI Strip */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+            <div className="rounded-2xl border border-[#E6DEC8] bg-white p-5 shadow-2xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                6–8 AM Ready for Dispatch
+                Ready for Dispatch ({dispatchDate})
               </span>
-              <p className="mt-1 font-serif text-3xl font-bold text-emerald-800">
+              <p className="mt-1 font-serif text-3xl font-bold text-stone-900">
                 {activeDeliveriesCount} Pouches
               </p>
             </div>
-            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+            <div className="rounded-2xl border border-[#E6DEC8] bg-white p-5 shadow-2xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                Festive Dates Scheduled
+                Subscriber Add-Ons ({dispatchDate})
               </span>
-              <p className="mt-1 font-serif text-3xl font-bold text-[#E8502B]">
-                {festiveDates.length} Days
+              <p className="mt-1 font-serif text-3xl font-bold text-[#D95326]">
+                {activeAddOnsCount} Add-Ons
               </p>
+              <span className="text-[10px] text-stone-500">
+                (100g / 150g Extra Packs)
+              </span>
             </div>
-            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+            <div className="rounded-2xl border border-[#E6DEC8] bg-white p-5 shadow-2xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                Registered Flowers
+                Earliest New Booking Start
               </span>
-              <p className="mt-1 font-serif text-3xl font-bold text-stone-900">
-                {flowers.length} Varieties
+              <p className="mt-1 font-serif text-2xl font-bold text-stone-900">
+                {getEarliestDeliveryDateString()}
               </p>
+              <span className="text-[10px] text-stone-500">
+                (1-Day Farm Buffer Applied)
+              </span>
             </div>
-            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+            <div className="rounded-2xl border border-[#E6DEC8] bg-white p-5 shadow-2xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                Non-Subscriber Orders
+                12:00 AM Midnight Cron
               </span>
-              <p
-                className={`mt-1 font-serif text-lg font-bold ${
-                  normalPurchaseAllowed ? "text-emerald-800" : "text-[#E8502B]"
-                }`}
-              >
-                {normalPurchaseAllowed
-                  ? festiveMode.isFestiveDay
-                    ? "Festive Lock (2KG/3KG)"
-                    : "Open (500g Public)"
-                  : "Locked (Subscribers Only)"}
+              <p className="mt-1 font-serif text-lg font-bold text-[#D95326]">
+                Auto-Email Excel CSV
               </p>
-            </div>
-          </div>
-
-          {/* STORE ACCESS & CUSTOMER PURCHASE CONTROL CARD */}
-          <div className="rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-7 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-1.5 max-w-2xl">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-900">
-                  <Sparkles className="h-3 w-3 text-[#E8502B]" />
-                  <span>Store Access Control • Normal Customer Purchases</span>
-                </div>
-                <h3 className="font-serif text-xl sm:text-2xl font-bold text-stone-900">
-                  Non-Subscriber Direct Flower Purchases
-                </h3>
-                <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                  {normalPurchaseAllowed
-                    ? "🟢 OPEN: Regular customers (without any plan) can browse and purchase loose flower packs (up to 500g). Subscribers can order up to 2–3 KG."
-                    : "🔒 SUBSCRIBERS ONLY: Loose flower purchases are disabled for regular non-subscribers. Only active Weekly & Monthly plan subscribers can purchase loose flowers."}
-                </p>
-                <p className="text-[11px] text-stone-400 italic">
-                  Note: This toggle operates separately from Festive Days. Weekly and Monthly subscription plans remain available for purchase at all times.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4 bg-[#FAF7F2] border border-stone-200 p-4 rounded-2xl shrink-0">
-                <div className="text-right">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    Current Mode
-                  </span>
-                  <span
-                    className={`inline-block font-bold text-xs ${
-                      normalPurchaseAllowed ? "text-emerald-700" : "text-[#E8502B]"
-                    }`}
-                  >
-                    {normalPurchaseAllowed ? "● ALL SHOPPERS ALLOWED" : "🔒 SUBSCRIBERS ONLY"}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleToggleNormalPurchase}
-                  className={`relative inline-flex h-8 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                    normalPurchaseAllowed ? "bg-emerald-600" : "bg-[#E8502B]"
-                  }`}
-                  role="switch"
-                  aria-checked={normalPurchaseAllowed}
-                  title="Click to toggle non-subscriber purchases"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                      normalPurchaseAllowed ? "translate-x-8" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
+              <span className="text-[10px] text-stone-500">
+                Daily to Admin Email
+              </span>
             </div>
           </div>
 
           {toast && (
-            <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-950 shadow-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div className="flex items-center gap-2.5 rounded-2xl border border-[#D95326] bg-[#FFF3EC] px-5 py-3.5 text-sm font-bold text-stone-900 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 text-[#D95326] shrink-0" />
               <span>{toast}</span>
             </div>
           )}
 
           {/* 4 Navigation Tabs */}
-          <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-4">
+          <div className="flex flex-wrap gap-2 border-b border-[#E6DEC8] pb-4">
             <button
               type="button"
               onClick={() => setActiveTab("DISPATCH")}
               className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
                 activeTab === "DISPATCH"
-                  ? "bg-[#071C15] text-amber-300 shadow-sm"
-                  : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                  ? "bg-[#D95326] text-white shadow-xs"
+                  : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
               }`}
             >
-              <Truck className="h-4 w-4 text-[#F05A36]" />
-              <span>1. Morning 6–8 AM Dispatch</span>
+              <Truck className="h-4 w-4" />
+              <span>
+                1. Live 6–8 AM Dispatch & Add-Ons ({dispatchRows.length})
+              </span>
             </button>
-
             <button
               type="button"
-              onClick={() => setActiveTab("FESTIVE_CALENDAR")}
+              onClick={() => setActiveTab("PLAN_MATRIX")}
               className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "FESTIVE_CALENDAR"
-                  ? "bg-[#071C15] text-amber-300 shadow-sm"
-                  : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                activeTab === "PLAN_MATRIX"
+                  ? "bg-[#D95326] text-white shadow-xs"
+                  : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
               }`}
             >
-              <Calendar className="h-4 w-4 text-[#F05A36]" />
-              <span>2. Festive Days Calendar ({festiveDates.length})</span>
+              <IndianRupee className="h-4 w-4" />
+              <span>
+                2. Dynamic Plan Matrix, Weights & Varieties (
+                {planVariants.length})
+              </span>
             </button>
-
             <button
               type="button"
               onClick={() => setActiveTab("FLOWERS")}
               className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
                 activeTab === "FLOWERS"
-                  ? "bg-[#071C15] text-amber-300 shadow-sm"
-                  : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                  ? "bg-[#D95326] text-white shadow-xs"
+                  : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
               }`}
             >
-              <Flower2 className="h-4 w-4 text-[#F05A36]" />
-              <span>3. Upload & Manage Flowers ({flowers.length})</span>
+              <Flower2 className="h-4 w-4" />
+              <span>3. Subscriber Add-On Flowers ({flowers.length})</span>
             </button>
-
             <button
               type="button"
-              onClick={() => setActiveTab("PRICING")}
+              onClick={() => setActiveTab("FESTIVE_CALENDAR")}
               className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "PRICING"
-                  ? "bg-[#071C15] text-amber-300 shadow-sm"
-                  : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                activeTab === "FESTIVE_CALENDAR"
+                  ? "bg-[#D95326] text-white shadow-xs"
+                  : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
               }`}
             >
-              <IndianRupee className="h-4 w-4 text-[#F05A36]" />
-              <span>4. Edit Plan Prices (₹49 / ₹329 / ₹1350)</span>
+              <Calendar className="h-4 w-4" />
+              <span>4. Festive Days Calendar ({festiveDates.length})</span>
             </button>
           </div>
 
-          {/* TAB 1: MORNING DISPATCH SHEET */}
+          {/* TAB 1: LIVE MYSQL MORNING DISPATCH SHEET WITH DEDICATED "ADD-ON" COLUMN */}
           {activeTab === "DISPATCH" && (
-            <div className="rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+            <div className="rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-stone-100 pb-5">
                 <div>
                   <h2 className="font-serif text-2xl font-bold text-stone-900">
-                    Today&apos;s 6:00 AM – 8:00 AM Packing & Dispatch Sheet
+                    Live 6:00 AM – 8:00 AM Packing & Add-On Dispatch Sheet
                   </h2>
                   <p className="text-xs text-stone-500">
-                    Synced with customer subscriptions and one-time gram pack orders across Thane 400601–400608.
+                    Shows each subscriber&apos;s daily plan pouch + any
+                    additional 100g/150g Add-On booked for {dispatchDate} (or{" "}
+                    <strong>-</strong> if no Add-On).
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 text-xs font-bold text-emerald-900">
-                  <PackageCheck className="h-4 w-4 text-emerald-600" />
-                  <span>Single Slot: 6:00 AM – 8:00 AM</span>
-                </span>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2">
+                    <Calendar className="h-4 w-4 text-[#D95326]" />
+                    <input
+                      type="date"
+                      value={dispatchDate}
+                      onChange={(e) => {
+                        setDispatchDate(e.target.value);
+                        void loadLiveDispatchForDate(e.target.value);
+                      }}
+                      className="bg-transparent text-xs font-bold text-stone-900 focus:outline-none"
+                    />
+                  </div>
+
+                  <a
+                    href={`/api/admin/dispatch?date=${encodeURIComponent(
+                      dispatchDate
+                    )}&format=csv`}
+                    download={`PALASSH-Dispatch-${dispatchDate}.csv`}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#D95326] hover:bg-[#BA421B] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Excel (.CSV)</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    disabled={isEmailingCsv}
+                    onClick={handleEmailCsvToAdmin}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer disabled:opacity-60"
+                  >
+                    <Mail className="h-3.5 w-3.5 text-[#F5D0A9]" />
+                    <span>
+                      {isEmailingCsv
+                        ? "Sending Email..."
+                        : "Email Excel to Admin"}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-stone-200 text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                      <th className="py-3 px-4">Order & Type</th>
-                      <th className="py-3 px-4">Customer & Society Flat</th>
-                      <th className="py-3 px-4">Slot</th>
-                      <th className="py-3 px-4">Flowers to Pack</th>
-                      <th className="py-3 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100 text-xs">
-                    {dispatchRows.map((row) => (
-                      <tr
-                        key={row.orderId}
-                        className={
-                          row.status === "PAUSED_TODAY"
-                            ? "bg-stone-50/80 opacity-65"
-                            : "hover:bg-orange-50/20"
-                        }
-                      >
-                        <td className="py-4 px-4 font-bold text-stone-900">
-                          <div>#{row.orderId}</div>
-                          <span
-                            className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
-                              row.orderType === "ONE_TIME"
-                                ? "bg-orange-100 text-[#E8502B]"
-                                : "bg-emerald-100 text-emerald-900"
-                            }`}
-                          >
-                            {row.orderType}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <p className="font-bold text-stone-900">
-                            {row.customerName}
-                          </p>
-                          <p className="text-stone-500 flex items-center gap-1 mt-0.5">
-                            <MapPin className="h-3 w-3 text-[#E8502B] shrink-0" />
-                            <span>{row.societyAndFlat}</span>
-                          </p>
-                          <p className="text-[11px] text-stone-400 italic mt-0.5">
-                            Note: {row.deliveryNote}
-                          </p>
-                        </td>
-                        <td className="py-4 px-4 font-semibold text-stone-700">
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-emerald-700" />
-                            6:00 AM – 8:00 AM
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-block rounded-xl border border-orange-200 bg-[#FAF7F2] px-3 py-1.5 font-bold text-stone-900">
-                            {row.todaysFlowers}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          {row.status === "DISPATCH_READY" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-900">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
-                              Pack & Deliver
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-900">
-                              <PauseCircle className="h-3.5 w-3.5 text-amber-700" />
-                              Paused Today
-                            </span>
-                          )}
-                        </td>
+              {isLoadingDispatch ? (
+                <div className="py-16 text-center text-xs font-bold text-stone-500">
+                  Loading live orders & Add-Ons from Hostinger MySQL for{" "}
+                  {dispatchDate}...
+                </div>
+              ) : dispatchRows.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#E6DEC8] bg-[#FAF6F0] p-12 text-center space-y-2">
+                  <Truck className="mx-auto h-8 w-8 text-stone-400" />
+                  <p className="font-serif text-lg font-bold text-stone-800">
+                    No Deliveries Scheduled for {dispatchDate} Yet
+                  </p>
+                  <p className="text-xs text-stone-500 max-w-md mx-auto">
+                    As soon as a customer purchases a plan or books a 100g/150g
+                    Add-On for {dispatchDate}, it will appear here and in your
+                    downloadable Excel (.CSV) file.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-stone-200 text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                        <th className="py-3 px-4">Order & Plan</th>
+                        <th className="py-3 px-4">Customer & Phone Number</th>
+                        <th className="py-3 px-4">Society Flat & Note</th>
+                        <th className="py-3 px-4">Plan Pouch</th>
+                        <th className="py-3 px-4">Add-On (100g / 150g)</th>
+                        <th className="py-3 px-4">Status</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 text-xs">
+                      {dispatchRows.map((row) => {
+                        const hasAddOn =
+                          row.addOnFlowers && row.addOnFlowers !== "-";
+                        return (
+                          <tr
+                            key={`${row.orderId}-${row.dayNumber || 1}`}
+                            className={
+                              row.status === "PAUSED_TODAY"
+                                ? "bg-stone-50/80 opacity-65"
+                                : "hover:bg-[#FAF6F0]/60"
+                            }
+                          >
+                            <td className="py-4 px-4 font-bold text-stone-900">
+                              <div>#{row.orderId}</div>
+                              <span className="mt-1 inline-block rounded bg-[#FFF3EC] border border-[#E6DEC8] px-2 py-0.5 text-[10px] font-bold text-[#D95326]">
+                                {row.planTitle || row.orderType}{" "}
+                                {row.dayNumber ? `• Day #${row.dayNumber}` : ""}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <p className="font-bold text-stone-900">
+                                {row.customerName}
+                              </p>
+                              <a
+                                href={`tel:+91${row.phone}`}
+                                className="inline-flex items-center gap-1 text-[#D95326] font-bold mt-0.5 hover:underline"
+                              >
+                                <Phone className="h-3 w-3" />
+                                <span>+91 {row.phone}</span>
+                              </a>
+                            </td>
+                            <td className="py-4 px-4">
+                              <p className="text-stone-700 font-semibold flex items-center gap-1">
+                                <MapPin className="h-3 w-3 text-[#D95326] shrink-0" />
+                                <span>{row.societyAndFlat}</span>
+                              </p>
+                              <p className="text-[11px] text-stone-500 italic mt-0.5">
+                                Note: {row.deliveryNote}
+                              </p>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="inline-block rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-1.5 font-bold text-stone-900">
+                                {row.todaysFlowers}
+                              </span>
+                            </td>
+                            {/* DEDICATED ADD-ON COLUMN (Shows Add-On or "-" Dash) */}
+                            <td className="py-4 px-4">
+                              {hasAddOn ? (
+                                <span className="inline-block rounded-xl border border-[#D95326] bg-[#FFF3EC] px-3 py-1.5 font-bold text-[#D95326]">
+                                  + {row.addOnFlowers}
+                                </span>
+                              ) : (
+                                <span className="font-bold text-stone-400 px-2">
+                                  -
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              {row.status === "DISPATCH_READY" ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF3EC] border border-[#D95326]/40 px-3 py-1 text-[11px] font-bold text-[#D95326]">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Pack & Deliver (6–8 AM)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-stone-200 px-3 py-1 text-[11px] font-bold text-stone-700">
+                                  <PauseCircle className="h-3.5 w-3.5" />
+                                  Paused Today
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: DYNAMIC PLANS × DYNAMIC WEIGHTS × VARIETIES MATRIX */}
+          {activeTab === "PLAN_MATRIX" && (
+            <div className="space-y-8">
+              <div className="rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                      Dynamic Multi-Weight & Multi-Plan Rate Matrix
+                    </span>
+                    <h2 className="font-serif text-2xl font-bold text-stone-900">
+                      Edit Prices Across All Plans ({plans.length} Plans ×{" "}
+                      {availableWeights.length} Weights)
+                    </h2>
+                    <p className="text-xs text-stone-500">
+                      Every new plan (e.g. 2 Months Plan) or new weight (e.g.
+                      250g) you add below automatically appears as an editable
+                      column here!
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form
+                      onSubmit={handleAddWeightTierToPlans}
+                      className="flex items-center gap-1.5"
+                    >
+                      <input
+                        type="number"
+                        placeholder="Add Weight (e.g. 250)"
+                        value={customNewWeightGrams}
+                        onChange={(e) =>
+                          setCustomNewWeightGrams(e.target.value)
+                        }
+                        className="w-40 rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2 text-xs font-bold text-stone-900 focus:border-[#D95326] focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1 rounded-xl bg-stone-900 hover:bg-[#D95326] px-3.5 py-2 text-xs font-bold text-white transition cursor-pointer"
+                      >
+                        <Scale className="h-3.5 w-3.5" />
+                        <span>+ Add Weight</span>
+                      </button>
+                    </form>
+
+                    <button
+                      type="button"
+                      onClick={handleResetAllDefaults}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3.5 py-2 text-xs font-bold text-stone-700 hover:bg-[#F3ECE1] cursor-pointer"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Reset Excel Defaults</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">
+                    Active Weight Columns:
+                  </span>
+                  {availableWeights.map((wt) => (
+                    <span
+                      key={wt}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-1 text-xs font-bold text-stone-800"
+                    >
+                      <span>{wt} gms</span>
+                      {availableWeights.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveWeightTier(wt)}
+                          className="text-stone-400 hover:text-rose-600 cursor-pointer"
+                          title={`Remove ${wt}g tier`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-[#E6DEC8] bg-[#FAF6F0] text-[10px] font-bold uppercase text-stone-600">
+                        <th className="py-3 px-3 min-w-[180px]">
+                          Sr. & Flower Variety
+                        </th>
+                        {availableWeights.map((wt, wIdx) =>
+                          plans.map((pl, pIdx) => (
+                            <th
+                              key={`${wt}-${pl.id}`}
+                              className={`py-3 px-2 min-w-[105px] ${
+                                wIdx > 0 && pIdx === 0
+                                  ? "border-l-2 border-[#D95326]/30"
+                                  : ""
+                              }`}
+                            >
+                              <span className="block text-[#D95326]">
+                                {wt}G
+                              </span>
+                              <span className="block text-stone-800 truncate">
+                                {pl.title}
+                              </span>
+                            </th>
+                          ))
+                        )}
+                        <th className="py-3 px-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {planVariants.map((v) => (
+                        <tr key={v.id} className="hover:bg-[#FAF6F0]/50">
+                          <td className="py-3 px-3 font-bold text-stone-900">
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={v.imageUrl || "/images/merigold.jpeg"}
+                                alt={v.name}
+                                className="h-10 w-10 rounded-lg object-cover border border-[#E6DEC8] shrink-0"
+                              />
+                              <div>
+                                <span>
+                                  {v.srNo}. {v.name}
+                                </span>
+                                <span className="block text-[10px] font-normal text-stone-500">
+                                  ({v.marathiName})
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          {availableWeights.map((wt, wIdx) =>
+                            plans.map((pl, pIdx) => {
+                              const currentPrice = getVariantPriceForPlan(
+                                v,
+                                wt,
+                                pl
+                              );
+                              return (
+                                <td
+                                  key={`${v.id}-${wt}-${pl.id}`}
+                                  className={`py-2 px-2 ${
+                                    wIdx > 0 && pIdx === 0
+                                      ? "border-l-2 border-[#D95326]/30"
+                                      : ""
+                                  }`}
+                                >
+                                  <input
+                                    type="number"
+                                    value={currentPrice}
+                                    onChange={(e) =>
+                                      handleUpdateVariantMatrixPrice(
+                                        v.id,
+                                        wt,
+                                        pl,
+                                        Number(e.target.value)
+                                      )
+                                    }
+                                    className={`w-20 rounded-lg border border-[#E6DEC8] px-2 py-1.5 font-bold focus:border-[#D95326] focus:outline-none ${
+                                      wIdx % 2 === 1
+                                        ? "bg-[#FAF6F0] text-[#D95326]"
+                                        : "bg-white text-stone-900"
+                                    }`}
+                                  />
+                                </td>
+                              );
+                            })
+                          )}
+                          <td className="py-2 px-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemovePlanVariant(v.id, v.name)
+                              }
+                              className="rounded-lg border border-rose-200 bg-rose-50 p-1.5 text-rose-600 hover:bg-rose-100 cursor-pointer"
+                              title="Delete Variety"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                <form
+                  onSubmit={handleAddPlanVariant}
+                  className="lg:col-span-6 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-4"
+                >
+                  <div className="border-b border-stone-100 pb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                      Cloudinary CDN + Gallery Photo Upload
+                    </span>
+                    <h3 className="font-serif text-xl font-bold text-stone-900">
+                      Add New Flower Variety to Plans
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Variety Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Red Hibiscus Pack"
+                        value={newVarName}
+                        onChange={(e) => setNewVarName(e.target.value)}
+                        className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2 text-xs text-stone-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Marathi Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. लाल जास्वंद"
+                        value={newVarMarathi}
+                        onChange={(e) => setNewVarMarathi(e.target.value)}
+                        className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2 text-xs text-stone-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                      Upload Variety Photo (Cloudinary / Gallery) *
+                    </label>
+                    <div className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-[#E6DEC8] bg-[#FAF6F0] p-3">
+                      <img
+                        src={newVarImage}
+                        alt="Variety Preview"
+                        className="h-14 w-14 rounded-xl object-cover border border-stone-200 bg-white shrink-0"
+                      />
+                      <div className="flex-1 space-y-1">
+                        <label className="inline-flex items-center gap-2 rounded-xl bg-stone-900 hover:bg-[#D95326] px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition">
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>
+                            {isUploadingVarPhoto
+                              ? "Uploading..."
+                              : "Choose Variety Photo"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                void uploadPhotoToCloudinaryOrDataUrl(
+                                  file,
+                                  setIsUploadingVarPhoto,
+                                  setVarPhotoStatus,
+                                  setNewVarImage
+                                );
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        {varPhotoStatus && (
+                          <p className="text-[11px] font-semibold text-[#D95326]">
+                            {varPhotoStatus}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] font-bold uppercase text-stone-500 pt-1">
+                    100 gms Base Prices (1 Day / Weekly / Monthly):
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      required
+                      value={newVarDay100}
+                      onChange={(e) => setNewVarDay100(Number(e.target.value))}
+                      placeholder="1 Day ₹"
+                      className="rounded-xl border border-[#E6DEC8] px-3 py-2 text-xs font-bold"
+                    />
+                    <input
+                      type="number"
+                      required
+                      value={newVarWeek100}
+                      onChange={(e) => setNewVarWeek100(Number(e.target.value))}
+                      placeholder="Weekly ₹"
+                      className="rounded-xl border border-[#E6DEC8] px-3 py-2 text-xs font-bold"
+                    />
+                    <input
+                      type="number"
+                      required
+                      value={newVarMonth100}
+                      onChange={(e) =>
+                        setNewVarMonth100(Number(e.target.value))
+                      }
+                      placeholder="Monthly ₹"
+                      className="rounded-xl border border-[#E6DEC8] px-3 py-2 text-xs font-bold"
+                    />
+                  </div>
+
+                  <p className="text-[11px] font-bold uppercase text-stone-500 pt-1">
+                    150 gms Base Prices (1 Day / Weekly / Monthly):
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      required
+                      value={newVarDay150}
+                      onChange={(e) => setNewVarDay150(Number(e.target.value))}
+                      placeholder="1 Day ₹"
+                      className="rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2 text-xs font-bold"
+                    />
+                    <input
+                      type="number"
+                      required
+                      value={newVarWeek150}
+                      onChange={(e) => setNewVarWeek150(Number(e.target.value))}
+                      placeholder="Weekly ₹"
+                      className="rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2 text-xs font-bold"
+                    />
+                    <input
+                      type="number"
+                      required
+                      value={newVarMonth150}
+                      onChange={(e) =>
+                        setNewVarMonth150(Number(e.target.value))
+                      }
+                      placeholder="Monthly ₹"
+                      className="rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2 text-xs font-bold"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] py-3.5 text-xs font-bold text-white shadow-sm cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Variety with Photo to All Plans</span>
+                  </button>
+                </form>
+
+                <div className="lg:col-span-6 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-5">
+                  <form onSubmit={handleAddCustomPlan} className="space-y-4">
+                    <div className="border-b border-stone-100 pb-3">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                        Custom Plan Tier Builder
+                      </span>
+                      <h3 className="font-serif text-xl font-bold text-stone-900">
+                        Add New Subscription Plan Tier (e.g. 2 Months Plan)
+                      </h3>
+                      <p className="text-[11px] text-stone-500 mt-0.5">
+                        When you publish a plan here, a dedicated price column
+                        for it automatically appears in the matrix table above!
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          Plan Title *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 2 Months Plan"
+                          value={newPlanTitle}
+                          onChange={(e) => setNewPlanTitle(e.target.value)}
+                          className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2.5 text-xs text-stone-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          Deliveries Count (Days) *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          value={newPlanDeliveries}
+                          onChange={(e) =>
+                            setNewPlanDeliveries(Number(e.target.value))
+                          }
+                          className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2.5 text-xs font-bold text-stone-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Starting 100g Price for This Plan (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={newPlanBasePrice}
+                        onChange={(e) =>
+                          setNewPlanBasePrice(Number(e.target.value))
+                        }
+                        className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2.5 text-xs font-bold text-stone-900"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 hover:bg-[#D95326] py-3.5 text-xs font-bold text-white shadow-sm cursor-pointer transition"
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>Publish New Plan & Add Matrix Columns</span>
+                    </button>
+                  </form>
+
+                  <div className="border-t border-stone-100 pt-4 space-y-2">
+                    <p className="text-[11px] font-bold uppercase text-stone-400">
+                      Active Plan Tiers ({plans.length}):
+                    </p>
+                    {plans.map((pl) => (
+                      <div
+                        key={pl.id}
+                        className="flex items-center justify-between rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3.5 py-2.5 text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-stone-900">
+                            {pl.title}
+                          </span>{" "}
+                          <span className="text-stone-500">
+                            ({pl.deliveriesCount} mornings • From ₹{pl.price})
+                          </span>
+                        </div>
+                        {plans.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePlan(pl.id, pl.title)}
+                            className="text-rose-600 hover:underline font-bold cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: MONTH-WISE FESTIVE DAYS CALENDAR (Point #5) */}
+          {/* TAB 3: UPLOAD & MANAGE SUBSCRIBER ADD-ON FLOWERS (100g & 150g) */}
+          {activeTab === "FLOWERS" && (
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+              <form
+                onSubmit={handleAddFlower}
+                className="lg:col-span-5 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-4 h-fit"
+              >
+                <div className="border-b border-stone-100 pb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                    Cloudinary + Gallery Upload (100g & 150g Packs)
+                  </span>
+                  <h3 className="font-serif text-2xl font-bold text-stone-900">
+                    Register Subscriber Add-On Flower
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      English Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Mogra / Jasmine"
+                      value={newFlowerName}
+                      onChange={(e) => setNewFlowerName(e.target.value)}
+                      className="w-full rounded-xl border border-[#E6DEC8] px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#D95326] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      Marathi Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. मोगरा"
+                      value={newFlowerMarathi}
+                      onChange={(e) => setNewFlowerMarathi(e.target.value)}
+                      className="w-full rounded-xl border border-[#E6DEC8] px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#D95326] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                    Upload Flower Photo *
+                  </label>
+                  <div className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-[#E6DEC8] bg-[#FAF6F0] p-3.5">
+                    <img
+                      src={newFlowerImage}
+                      alt="Flower Preview"
+                      loading="lazy"
+                      decoding="async"
+                      className="h-16 w-16 rounded-xl object-cover border border-stone-200 shrink-0 bg-white"
+                    />
+                    <div className="flex-1 space-y-1.5">
+                      <label className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white cursor-pointer hover:bg-[#D95326]">
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>
+                          {isUploadingImage
+                            ? "Uploading..."
+                            : "Choose Photo from Gallery"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void uploadPhotoToCloudinaryOrDataUrl(
+                                file,
+                                setIsUploadingImage,
+                                setUploadStatusNote,
+                                setNewFlowerImage
+                              );
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {uploadStatusNote && (
+                        <p className="text-[11px] font-medium text-[#D95326]">
+                          {uploadStatusNote}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    Short Subtitle *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Fragrant Morning Temple Buds"
+                    value={newFlowerSubtitle}
+                    onChange={(e) => setNewFlowerSubtitle(e.target.value)}
+                    className="w-full rounded-xl border border-[#E6DEC8] px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#D95326] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                      100g Add-On Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      value={price100g}
+                      onChange={(e) => setPrice100g(Number(e.target.value))}
+                      className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2 text-sm font-bold text-stone-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                      150g Add-On Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      value={price150g}
+                      onChange={(e) => setPrice150g(Number(e.target.value))}
+                      className="w-full rounded-xl border border-[#E6DEC8] px-3 py-2 text-sm font-bold text-stone-900"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] py-3.5 text-xs font-bold text-white shadow-sm cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Flower to Add-On Catalog</span>
+                </button>
+              </form>
+
+              <div className="lg:col-span-7 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-5">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                  <h3 className="font-serif text-2xl font-bold text-stone-900">
+                    Registered Add-On Flowers ({flowers.length})
+                  </h3>
+                </div>
+
+                <div className="divide-y divide-stone-100">
+                  {flowers.map((flw) => (
+                    <div
+                      key={flw.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={flw.imageUrl}
+                          alt={flw.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-16 w-16 rounded-2xl object-cover border border-stone-200"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-serif text-lg font-bold text-stone-900">
+                              {flw.name}
+                            </h4>
+                            <span className="text-xs font-semibold text-stone-500">
+                              ({flw.marathiName})
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500">
+                            {flw.subtitle}
+                          </p>
+                          <p className="text-xs font-bold text-[#D95326] mt-0.5">
+                            {flw.availableWeights
+                              .filter((w) => w.grams === 100 || w.grams === 150)
+                              .map((w) => `${w.grams}g: ₹${w.price}`)
+                              .join(" • ")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFlowerStock(flw.id)}
+                          className="rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] px-3 py-2 text-xs font-bold text-stone-700 hover:bg-[#F3ECE1] cursor-pointer"
+                        >
+                          {flw.inStock ? "Mark Out of Stock" : "Mark In Stock"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFlower(flw.id, flw.name)}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: MONTH-WISE FESTIVE DAYS CALENDAR */}
           {activeTab === "FESTIVE_CALENDAR" && (
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-              {/* Left: Interactive Month-Wise Calendar Grid (7 Cols) */}
-              <div className="lg:col-span-7 rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-6">
+              <div className="lg:col-span-7 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-6">
                 <div className="flex items-center justify-between border-b border-stone-100 pb-4">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#E8502B]">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
                       Month-Wise Festive Planner
                     </span>
                     <h2 className="font-serif text-2xl font-bold text-stone-900">
@@ -780,7 +1671,6 @@ export default function AdminDashboardPage() {
                     </h2>
                   </div>
 
-                  {/* Month Switcher */}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -793,7 +1683,7 @@ export default function AdminDashboardPage() {
                           )
                         )
                       }
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-[#FAF7F2] hover:bg-stone-100 cursor-pointer"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] hover:bg-[#F3ECE1] cursor-pointer"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -814,14 +1704,13 @@ export default function AdminDashboardPage() {
                           )
                         )
                       }
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-[#FAF7F2] hover:bg-stone-100 cursor-pointer"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E6DEC8] bg-[#FAF6F0] hover:bg-[#F3ECE1] cursor-pointer"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Days of Week Header */}
                 <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase text-stone-400">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                     (d) => (
@@ -830,15 +1719,12 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
-                {/* Calendar Cells */}
                 <div className="grid grid-cols-7 gap-2">
                   {renderCalendarDays().map((cell) => {
                     if (!cell.day) {
                       return <div key={cell.dateStr} className="h-12" />;
                     }
                     const isMarked = festiveDates.includes(cell.dateStr);
-                    const isTomorrow = cell.dateStr === getTomorrowDateString();
-
                     return (
                       <button
                         key={cell.dateStr}
@@ -846,64 +1732,42 @@ export default function AdminDashboardPage() {
                         onClick={() => handleToggleCalendarDate(cell.dateStr)}
                         className={`relative flex flex-col items-center justify-center h-14 rounded-2xl border text-xs font-bold transition cursor-pointer ${
                           isMarked
-                            ? "border-2 border-[#E8502B] bg-gradient-to-br from-[#E8502B] to-[#D97706] text-white shadow-md"
-                            : "border-stone-200 bg-[#FAF7F2] text-stone-800 hover:border-orange-300 hover:bg-orange-50/50"
+                            ? "border-[#D95326] bg-[#D95326] text-white shadow-xs"
+                            : "border-[#E6DEC8] bg-[#FAF6F0] text-stone-800 hover:border-[#D95326]"
                         }`}
                       >
                         <span className="text-sm">{cell.day}</span>
                         {isMarked && (
-                          <span className="text-[9px] uppercase tracking-wider text-amber-100">
+                          <span className="text-[9px] uppercase tracking-wider text-white/90">
                             Festive
-                          </span>
-                        )}
-                        {!isMarked && isTomorrow && (
-                          <span className="text-[9px] text-emerald-700 font-semibold">
-                            Tomorrow
                           </span>
                         )}
                       </button>
                     );
                   })}
                 </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-100 text-xs text-stone-500">
-                  <span>
-                    Click any date to mark/unmark it as a Festive Day.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCalendarDate(getTomorrowDateString())}
-                    className="rounded-xl bg-[#071C15] px-4 py-2 text-xs font-bold text-amber-300 cursor-pointer"
-                  >
-                    Quick Toggle Tomorrow ({getTomorrowDateString()})
-                  </button>
-                </div>
               </div>
 
-              {/* Right: Scheduled Festive Dates List & Rules Explanation (5 Cols) */}
-              <div className="lg:col-span-5 rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-5 h-fit">
+              <div className="lg:col-span-5 rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-md space-y-5 h-fit">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800">
-                    Automated Quota Enforcement
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                    Festive Schedule
                   </span>
                   <h3 className="font-serif text-2xl font-bold text-stone-900">
                     Marked Festive Dates ({festiveDates.length})
                   </h3>
-                  <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                    On every date listed below, normal non-subscribed users are automatically blocked from buying direct flowers, while Weekly subscribers get up to <strong>2 KG</strong> and Monthly subscribers get up to <strong>3 KG</strong>.
-                  </p>
                 </div>
 
                 {festiveDates.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-stone-200 p-6 text-center text-xs text-stone-400">
-                    No festive dates marked yet. Click any date on the calendar to add.
+                  <div className="rounded-2xl border border-dashed border-[#E6DEC8] p-6 text-center text-xs text-stone-400">
+                    No festive dates marked yet.
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                     {festiveDates.map((dt) => (
                       <span
                         key={dt}
-                        className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#E8502B]"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#E6DEC8] bg-[#FFF3EC] px-3 py-1.5 text-xs font-bold text-[#D95326]"
                       >
                         <Flame className="h-3.5 w-3.5" />
                         <span>{dt}</span>
@@ -918,273 +1782,6 @@ export default function AdminDashboardPage() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: UPLOAD & MANAGE FLOWERS */}
-          {activeTab === "FLOWERS" && (
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-              <form
-                onSubmit={handleAddFlower}
-                className="lg:col-span-5 rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-4 h-fit"
-              >
-                <div className="border-b border-stone-100 pb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#E8502B]">
-                    Cloudinary + Local Photo Upload
-                  </span>
-                  <h3 className="font-serif text-2xl font-bold text-stone-900">
-                    Register New Flower
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      English Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Mogra / Jasmine"
-                      value={newFlowerName}
-                      onChange={(e) => setNewFlowerName(e.target.value)}
-                      className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#E8502B] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Marathi Name (मराठी नाव) *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. मोगरा"
-                      value={newFlowerMarathi}
-                      onChange={(e) => setNewFlowerMarathi(e.target.value)}
-                      className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#E8502B] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Upload Flower Photo *
-                  </label>
-                  <div className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-orange-200 bg-[#FAF7F2] p-3.5">
-                    <img
-                      src={newFlowerImage}
-                      alt="Flower Preview"
-                      className="h-16 w-16 rounded-xl object-cover border border-stone-200 shrink-0 bg-white"
-                    />
-                    <div className="flex-1 space-y-1.5">
-                      <label className="inline-flex items-center gap-2 rounded-xl bg-[#071C15] px-4 py-2 text-xs font-bold text-amber-200 cursor-pointer hover:bg-emerald-950">
-                        <Upload className="h-3.5 w-3.5 text-[#F05A36]" />
-                        <span>
-                          {isUploadingImage
-                            ? "Uploading..."
-                            : "Choose Photo from Gallery"}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoFileSelect}
-                          className="hidden"
-                        />
-                      </label>
-                      {uploadStatusNote && (
-                        <p className="text-[11px] font-medium text-emerald-800">
-                          {uploadStatusNote}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Short Subtitle *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Fragrant Morning Temple Buds"
-                    value={newFlowerSubtitle}
-                    onChange={(e) => setNewFlowerSubtitle(e.target.value)}
-                    className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#E8502B] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                      100g (₹)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={price100g}
-                      onChange={(e) => setPrice100g(Number(e.target.value))}
-                      className="w-full rounded-xl border border-stone-300 px-2.5 py-2 text-sm font-bold text-stone-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                      250g (₹)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={price250g}
-                      onChange={(e) => setPrice250g(Number(e.target.value))}
-                      className="w-full rounded-xl border border-stone-300 px-2.5 py-2 text-sm font-bold text-stone-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                      500g (₹)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={price500g}
-                      onChange={(e) => setPrice500g(Number(e.target.value))}
-                      className="w-full rounded-xl border border-stone-300 px-2.5 py-2 text-sm font-bold text-stone-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                      1000g (₹)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={price1000g}
-                      onChange={(e) => setPrice1000g(Number(e.target.value))}
-                      className="w-full rounded-xl border border-stone-300 px-2.5 py-2 text-sm font-bold text-stone-900"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] to-[#D97706] py-3.5 text-xs font-bold text-white shadow-md cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Flower to Storefront</span>
-                </button>
-              </form>
-
-              <div className="lg:col-span-7 rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-5">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                  <h3 className="font-serif text-2xl font-bold text-stone-900">
-                    Registered Flowers ({flowers.length})
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={handleResetCatalog}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 cursor-pointer"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>Reset Default 3</span>
-                  </button>
-                </div>
-
-                <div className="divide-y divide-stone-100">
-                  {flowers.map((flw) => (
-                    <div
-                      key={flw.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4"
-                    >
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={flw.imageUrl}
-                          alt={flw.name}
-                          className="h-16 w-16 rounded-2xl object-cover border border-stone-200"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-serif text-lg font-bold text-stone-900">
-                              {flw.name}
-                            </h4>
-                            <span className="text-xs font-semibold text-emerald-800">
-                              ({flw.marathiName})
-                            </span>
-                          </div>
-                          <p className="text-xs text-stone-500">
-                            {flw.subtitle}
-                          </p>
-                          <p className="text-xs font-bold text-[#E8502B] mt-0.5">
-                            {flw.availableWeights
-                              .map((w) => `${w.grams}g: ₹${w.price}`)
-                              .join(" • ")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFlowerStock(flw.id)}
-                          className="rounded-xl border border-stone-300 px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100 cursor-pointer"
-                        >
-                          {flw.inStock ? "Mark Out of Stock" : "Mark In Stock"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFlower(flw.id, flw.name)}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: SUBSCRIPTION PLAN PRICING EDITOR */}
-          {activeTab === "PRICING" && (
-            <div className="rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-lg space-y-6">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-stone-900">
-                  Subscription Tier Pricing Manager
-                </h2>
-                <p className="text-xs text-stone-500">
-                  Update prepaid prices for One Day Puja Pack (₹49), Weekly (₹329), and Monthly (₹1,350) plans.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="rounded-2xl border border-stone-200 bg-[#FAF7F2] p-6 space-y-4"
-                  >
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#E8502B]">
-                      {plan.deliveriesCount} Morning Deliveries
-                    </span>
-                    <h3 className="font-serif text-2xl font-bold text-stone-900">
-                      {plan.title}
-                    </h3>
-                    <div>
-                      <label className="block text-xs font-bold text-stone-600 mb-1.5">
-                        Plan Price (₹ / {plan.billingCycle})
-                      </label>
-                      <input
-                        type="number"
-                        value={plan.price}
-                        onChange={(e) =>
-                          handleUpdatePlanPrice(plan.id, Number(e.target.value))
-                        }
-                        className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 font-serif text-2xl font-bold text-stone-900 focus:border-[#E8502B] focus:outline-none"
-                      />
-                    </div>
-                    <p className="text-xs font-semibold text-emerald-900">
-                      Effective Rate: ₹{plan.perDayEffectivePrice} / morning
-                    </p>
-                  </div>
-                ))}
               </div>
             </div>
           )}

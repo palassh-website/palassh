@@ -3,9 +3,11 @@
 @theme {
   --font-serif: var(--font-serif), Georgia, Cambria, "Times New Roman", Times, serif;
   --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
+
   --duration-850: 850ms;
   --duration-900: 900ms;
   --duration-950: 950ms;
@@ -15,22 +17,25 @@
 }
 
 :root {
-  --background: #FAF7F2;       /* Royal Warm Ivory */
-  --surface: #FFFFFF;
-  --primary: #E8502B;          /* PALASSH Vermilion Orange */
-  --primary-dark: #B83718;     /* Deep Terracotta */
-  --gold-accent: #D97706;      /* Temple Brass Gold */
-  --sacred-green: #10B981;     /* Fresh Sacred Tulsi Green */
-  --text-main: #1C1613;        /* Deep Espresso Charcoal */
+  --background: #FAF6F0;       /* Subtle Warm Sand Beige */
+  --surface: #FFFFFF;          /* Pure Crisp White */
+  --surface-beige: #F3ECE1;    /* Soft Almond Beige Card Tint */
+  --border-beige: #E6DEC8;     /* Warm Subtle Sandstone Border */
+  --primary: #D95326;          /* Subtle Solid Terracotta Orange */
+  --primary-dark: #BA421B;     /* Solid Deep Terracotta Hover */
+  --charcoal-solid: #1C1917;   /* Solid Warm Charcoal */
+  --text-main: #1C1917;        /* Primary Espresso Charcoal Text */
+  --text-muted: #6E655F;       /* Muted Warm Taupe Gray */
 }
 
 body {
   background-color: var(--background);
   color: var(--text-main);
   font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Typography Enhancements */
 .font-serif {
   font-family: var(--font-serif), Georgia, serif;
   font-optical-sizing: auto;
@@ -38,28 +43,28 @@ body {
   letter-spacing: -0.02em;
 }
 
-h1, h2 { letter-spacing: -0.035em; }
-h3, h4 { letter-spacing: -0.02em; }
+h1, h2 { letter-spacing: -0.03em; }
+h3, h4 { letter-spacing: -0.015em; }
 
-/* Subtle Sacred Dot Pattern for Luxury Depth */
+/* Subtle Warm Dot Pattern */
 .bg-sacred-pattern {
-  background-image: radial-gradient(#e8502b18 1px, transparent 1px);
+  background-image: radial-gradient(#d9532614 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Sacred Marigold Orange & Tulsi Light-Green Mix Gradients */
+/* Solid Subtle Orange Accents (No Loud Rainbow Gradients) */
 .bg-gradient-sacred {
-  background: linear-gradient(135deg, #E8502B 0%, #F59E0B 50%, #10B981 100%);
+  background: linear-gradient(135deg, #D95326 0%, #C2451C 100%);
 }
 
 .bg-gradient-sacred-horizontal {
-  background: linear-gradient(90deg, #E8502B 0%, #F59E0B 45%, #10B981 100%);
+  background: linear-gradient(90deg, #D95326 0%, #E06D3B 100%);
 }
 
 /* Custom smooth horizontal scrollbar */
 .horizontal-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(217, 119, 6, 0.45) transparent;
+  scrollbar-color: rgba(217, 83, 38, 0.35) transparent;
 }
 .horizontal-scrollbar::-webkit-scrollbar {
   height: 6px;
@@ -68,119 +73,84 @@ h3, h4 { letter-spacing: -0.02em; }
   background: transparent;
 }
 .horizontal-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(217, 119, 6, 0.35);
+  background-color: rgba(217, 83, 38, 0.3);
   border-radius: 9999px;
 }
-.horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(217, 119, 6, 0.7);
-}
 
-/* ---------- GRAIN OVERLAY ---------- */
-.grain { position: relative; isolation: isolate; }
+/* ---------- SUBTLE TEXTURE OVERLAY ---------- */
+.grain {
+  position: relative;
+  isolation: isolate;
+}
 .grain::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.14;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 1;
 }
 
-/* Global button active compression */
 button:active, [role="button"]:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
   transition-duration: 80ms;
 }
-
-/* Section Wipe */
-@keyframes section-wipe {
-  0% { clip-path: inset(8% 0 0 0); }
-  100% { clip-path: inset(0 0 0 0); }
-}
-.section-wipe[data-visible="true"] {
-  animation: section-wipe 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* ============================================================
-   PALASSH — MOTION SYSTEM v2
-   ============================================================ */
 
 /* ---------- 1. SPLIT-TEXT MASK REVEAL ---------- */
 .split-root { perspective: 1000px; }
 .split-chunk { display: inline-block; white-space: nowrap; }
-
 .split-word {
   display: inline-block;
   overflow: hidden;
   vertical-align: bottom;
-  padding-bottom: 0.18em;   /* stops descenders (g, y, p) clipping */
+  padding-bottom: 0.18em;
   margin-bottom: -0.18em;
-  perspective: 700px;
 }
-
 .split-word > span {
   display: inline-block;
   transform-origin: 50% 100%;
   backface-visibility: hidden;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   opacity: 0;
-  transform: translate3d(0, 118%, 0) rotateX(-52deg);
-  filter: blur(8px);
+  transform: translate3d(0, 105%, 0);
 }
-
 .split-root[data-play="true"] .split-word > span {
-  animation: word-rise 1100ms var(--ease-out-expo) both;
+  animation: word-rise 800ms var(--ease-out-expo) both;
   animation-delay: calc(
-    var(--split-delay, 0ms) + var(--i, 0) * var(--split-stagger, 60ms)
+    var(--split-delay, 0ms) + var(--i, 0) * var(--split-stagger, 45ms)
   );
 }
-
 @keyframes word-rise {
-  0%   { opacity: 0; transform: translate3d(0, 118%, 0) rotateX(-52deg); filter: blur(8px); }
-  60%  { opacity: 1; filter: blur(0px); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0deg); filter: blur(0px); }
+  0%   { opacity: 0; transform: translate3d(0, 105%, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 /* ---------- 2. HERO CHOREOGRAPHY ---------- */
 @keyframes fade-lift-in {
-  0%   { opacity: 0; transform: translate3d(0, 26px, 0); }
+  0%   { opacity: 0; transform: translate3d(0, 18px, 0); }
   100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-.animate-fade-lift-in { animation: fade-lift-in 850ms var(--ease-out-expo) both; }
+.animate-fade-lift-in { animation: fade-lift-in 650ms var(--ease-out-expo) both; }
 
 @keyframes wipe-right {
-  0%   { clip-path: inset(0 100% 0 0); transform: translate3d(-22px, 0, 0); }
+  0%   { clip-path: inset(0 100% 0 0); transform: translate3d(-14px, 0, 0); }
   100% { clip-path: inset(0 0 0 0);    transform: translate3d(0, 0, 0); }
 }
-.animate-wipe-right { animation: wipe-right 1100ms var(--ease-out-expo) both; }
+.animate-wipe-right { animation: wipe-right 900ms var(--ease-out-expo) both; }
 
 @keyframes hero-wipe {
   0%   { clip-path: inset(0 0 0 100%); }
   100% { clip-path: inset(0 0 0 0); }
 }
-.animate-hero-wipe { animation: hero-wipe 1300ms var(--ease-out-expo) both; }
+.animate-hero-wipe { animation: hero-wipe 1050ms var(--ease-out-expo) both; }
 
-/* Infinite, ultra-slow gradient drift on the italic headline (slowed to 14s) */
 @keyframes gradient-pan {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
 }
 .animate-gradient-pan { animation: gradient-pan 14s ease-in-out infinite; }
 
-/* Living aurora blobs behind the hero */
-@keyframes aurora-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  33%      { transform: translate3d(7%, -9%, 0) scale(1.16); }
-  66%      { transform: translate3d(-8%, 6%, 0) scale(0.9); }
-}
-.animate-aurora {
-  animation: aurora-drift 20s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* Slide progress fill bar (matches 6s autoplay) */
 @keyframes hero-progress {
   0%   { width: 0%; }
   100% { width: 100%; }
@@ -205,7 +175,7 @@ button:active, [role="button"]:active {
 
 /* ---------- 3. RITUAL TIMELINE BEAM ---------- */
 @keyframes beam-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.animate-beam-draw { animation: beam-draw 1400ms var(--ease-out-expo) both; }
+.animate-beam-draw { animation: beam-draw 1200ms var(--ease-out-expo) both; }
 
 @keyframes beam-travel {
   0%   { left: 0%;   opacity: 0; }
@@ -214,43 +184,50 @@ button:active, [role="button"]:active {
   100% { left: 100%; opacity: 0; }
 }
 .animate-beam-travel {
-  animation: beam-travel 3.8s cubic-bezier(0.45, 0, 0.55, 1) 1.45s infinite;
+  animation: beam-travel 3.8s cubic-bezier(0.45, 0, 0.55, 1) 1.2s infinite;
 }
 
-/* ---------- 4. CARD ENTRANCE (3D flip + blur) ---------- */
+/* ---------- 4. CARD ENTRANCE ---------- */
 @keyframes card-flip-in {
-  0%   { opacity: 0; transform: perspective(1200px) rotateX(16deg) translate3d(0, 56px, 0) scale(0.94); filter: blur(7px); }
-  100% { opacity: 1; transform: perspective(1200px) rotateX(0) translate3d(0, 0, 0) scale(1); filter: blur(0); }
+  0%   { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.98); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 .reveal-flip {
   opacity: 0;
-  transform: perspective(1200px) rotateX(16deg) translate3d(0, 56px, 0) scale(0.94);
-  filter: blur(7px);
+  transform: translate3d(0, 28px, 0) scale(0.98);
 }
 .reveal-flip[data-visible="true"] {
-  animation: card-flip-in 950ms var(--ease-out-expo) both;
+  animation: card-flip-in 700ms var(--ease-out-expo) both;
   animation-delay: var(--reveal-delay, 0ms);
 }
 
-/* Springy pop for icon circles / step numbers */
 @keyframes pop-in {
-  0%   { opacity: 0; transform: scale(0.4) rotate(-14deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  0%   { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
 }
 .animate-pop-in {
   opacity: 0;
-  transform: scale(0.4) rotate(-14deg);
+  transform: scale(0.6);
 }
 [data-visible="true"] .animate-pop-in {
-  animation: pop-in 750ms var(--ease-spring) both;
+  animation: pop-in 600ms var(--ease-spring) both;
 }
 
-/* ---------- 5. TOAST ---------- */
+/* ---------- 5. TOAST & PERFORMANCE ---------- */
 @keyframes toast-in {
-  0%   { opacity: 0; transform: translate3d(110%, -8px, 0) scale(0.92); }
+  0%   { opacity: 0; transform: translate3d(110%, -8px, 0) scale(0.95); }
   100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-.animate-toast-in { animation: toast-in 620ms var(--ease-spring) both; }
+.animate-toast-in {
+  animation: toast-in 400ms var(--ease-spring) both;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 550px;
+}
 
 @keyframes toast-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .animate-toast-drain {
@@ -258,34 +235,22 @@ button:active, [role="button"]:active {
   transform-origin: left center;
 }
 
-/* ---------- 6. CART BADGE BUMP ---------- */
 @keyframes badge-bump {
   0%, 100% { transform: scale(1); }
-  35%      { transform: scale(1.4) rotate(-7deg); }
-  62%      { transform: scale(0.9)  rotate(4deg); }
+  35%      { transform: scale(1.25); }
+  62%      { transform: scale(0.94); }
 }
-.animate-badge-bump { animation: badge-bump 620ms var(--ease-spring); }
+.animate-badge-bump { animation: badge-bump 500ms var(--ease-spring); }
 
-/* ---------- 7. ACCESSIBILITY KILL SWITCH ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    scrunroll-behavior: auto !important;
   }
-  .split-word > span {
+  .split-word > span, .reveal-flip, .animate-pop-in {
     animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
-  }
-  .reveal-flip {
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
-  }
-  .animate-pop-in {
     opacity: 1 !important;
     transform: none !important;
   }

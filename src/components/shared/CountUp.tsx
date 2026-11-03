@@ -18,24 +18,34 @@ export function CountUp({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let rafId: number | null = null;
+    let isMounted = true;
     const io = new IntersectionObserver(
       ([e]) => {
         if (!e.isIntersecting) return;
         io.disconnect();
         const start = performance.now();
         const tick = (now: number) => {
+          if (!isMounted) return;
           const p = Math.min((now - start) / duration, 1);
           const eased = 1 - Math.pow(1 - p, 4);
           setVal(end * eased);
-          if (p < 1) requestAnimationFrame(tick);
-          else setVal(end);
+          if (p < 1) {
+            rafId = requestAnimationFrame(tick);
+          } else {
+            setVal(end);
+          }
         };
-        requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tick);
       },
       { threshold: 0.4 }
     );
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      isMounted = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      io.disconnect();
+    };
   }, [end, duration]);
 
   return (

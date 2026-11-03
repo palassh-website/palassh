@@ -8,26 +8,28 @@ import {
   ArrowUpRight,
   Clock,
   Scale,
-  SlidersHorizontal,
   Eye,
   X,
   Sparkles,
   ShieldCheck,
-  Leaf,
+  Tag,
 } from "lucide-react";
 import {
   INITIAL_PLANS,
   SubscriptionPlan,
-  FlowerProduct,
-  FlowerSelectionMode,
-  getActiveFlowersCatalog,
+  PLAN_PRODUCT_VARIANTS,
+  PlanWeightGrams,
+  PlanProductVariant,
+  getActivePlanVariants,
+  getAvailableWeightsForVariants,
+  resolvePlanVariantPricing,
   getActivePlansCatalog,
 } from "../types";
 import { ScrollReveal } from "@/components/shared/ScrollReveal";
 
-interface PlanCustomizationState {
-  mode: FlowerSelectionMode;
-  selectedFlowers: string[];
+interface PlanSelectionState {
+  weightGrams: PlanWeightGrams;
+  productVariantId: string;
 }
 
 export function PlanCards({
@@ -35,236 +37,370 @@ export function PlanCards({
 }: {
   plans?: SubscriptionPlan[];
 }) {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>(propPlans || INITIAL_PLANS);
-  const [availableFlowers, setAvailableFlowers] = useState<FlowerProduct[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>(
+    propPlans || INITIAL_PLANS
+  );
+  const [variants, setVariants] = useState<PlanProductVariant[]>(
+    PLAN_PRODUCT_VARIANTS
+  );
   const [activeDetailPlan, setActiveDetailPlan] =
     useState<SubscriptionPlan | null>(null);
 
-  useEffect(() => {
-    if (propPlans && propPlans.length > 0) {
-      setPlans(propPlans);
-      return;
-    }
-    const syncPlans = () => {
-      setPlans(getActivePlansCatalog());
-    };
-    syncPlans();
-    window.addEventListener("palassh-plans-updated", syncPlans);
-    window.addEventListener("storage", syncPlans);
-    return () => {
-      window.removeEventListener("palassh-plans-updated", syncPlans);
-      window.removeEventListener("storage", syncPlans);
-    };
-  }, [propPlans]);
-  const [customizations, setCustomizations] = useState<
-    Record<string, PlanCustomizationState>
+  const [selections, setSelections] = useState<
+    Record<string, PlanSelectionState>
   >({
     "plan-daily": {
-      mode: "MIXED",
-      selectedFlowers: ["Marigold"],
+      weightGrams: 100,
+      productVariantId: "prod-mixed-marigold",
     },
     "plan-weekly": {
-      mode: "MIXED",
-      selectedFlowers: ["Marigold", "Red Hibiscus"],
+      weightGrams: 100,
+      productVariantId: "prod-mixed-marigold",
     },
     "plan-monthly": {
-      mode: "MIXED",
-      selectedFlowers: ["Marigold", "Chrysanthemum", "Red Hibiscus"],
+      weightGrams: 100,
+      productVariantId: "prod-mixed-marigold",
     },
   });
 
   useEffect(() => {
-    const flowers = getActiveFlowersCatalog().filter((f) => f.inStock);
-    setAvailableFlowers(flowers);
-  }, []);
+    if (!activeDetailPlan) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveDetailPlan(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeDetailPlan]);
 
-  const toggleMixedCheckbox = (planId: string) => {
-    setCustomizations((prev) => {
-      const currentMode = prev[planId]?.mode || "MIXED";
-      const nextMode: FlowerSelectionMode =
-        currentMode === "MIXED" ? "CUSTOM" : "MIXED";
-      return {
-        ...prev,
-        [planId]: {
-          mode: nextMode,
-          selectedFlowers:
-            prev[planId]?.selectedFlowers?.length > 0
-              ? prev[planId].selectedFlowers
-              : [availableFlowers[0]?.name || "Marigold"],
-        },
-      };
+  useEffect(() => {
+    const syncCatalog = () => {
+      const latestPlans =
+        propPlans && propPlans.length > 0
+          ? propPlans
+          : getActivePlansCatalog();
+      const latestVariants = getActivePlanVariants();
+      setPlans(latestPlans);
+      setVariants(latestVariants);
+    };
+    syncCatalog();
+    window.addEventListener("palassh-plans-updated", syncCatalog);
+    window.addEventListener("storage", syncCatalog);
+    return () => {
+      window.removeEventListener("palassh-plans-updated", syncCatalog);
+      window.removeEventListener("storage", syncCatalog);
+    };
+  }, [propPlans]);
+
+  const availableWeights = getAvailableWeightsForVariants(variants);
+
+  const setCardWeight = (planId: string, weightGrams: PlanWeightGrams) => {
+    setSelections((prev) => ({
+      ...prev,
+      [planId]: {
+        ...(prev[planId] || {
+          weightGrams: 100,
+          productVariantId:
+            variants[0]?.id || "prod-mixed-marigold",
+        }),
+        weightGrams,
+      },
+    }));
+  };
+
+  const setAllCardsWeight = (weightGrams: PlanWeightGrams) => {
+    setSelections((prev) => {
+      const next: Record<string, PlanSelectionState> = { ...prev };
+      plans.forEach((p) => {
+        next[p.id] = {
+          productVariantId:
+            prev[p.id]?.productVariantId ||
+            variants[0]?.id ||
+            "prod-mixed-marigold",
+          weightGrams,
+        };
+      });
+      return next;
     });
   };
 
-  const toggleFlowerCheckbox = (planId: string, flowerName: string) => {
-    setCustomizations((prev) => {
-      const isCurrentlyMixed = prev[planId]?.mode === "MIXED";
-      const current = isCurrentlyMixed
-        ? []
-        : prev[planId]?.selectedFlowers || [];
-      const exists = current.includes(flowerName);
-      const updated = exists
-        ? current.length > 1
-          ? current.filter((f) => f !== flowerName)
-          : current
-        : [...current, flowerName];
-      return {
-        ...prev,
-        [planId]: {
-          mode: "CUSTOM",
-          selectedFlowers: updated,
-        },
-      };
-    });
+  const setCardProductVariant = (planId: string, productVariantId: string) => {
+    setSelections((prev) => ({
+      ...prev,
+      [planId]: {
+        weightGrams: prev[planId]?.weightGrams || 100,
+        productVariantId,
+      },
+    }));
   };
 
   const buildCheckoutUrl = (plan: SubscriptionPlan) => {
-    const config = customizations[plan.id] || {
-      mode: "MIXED",
-      selectedFlowers: ["Marigold"],
+    const sel = selections[plan.id] || {
+      weightGrams: availableWeights[0] || 100,
+      productVariantId: variants[0]?.id || "prod-mixed-marigold",
     };
+    const resolved = resolvePlanVariantPricing({
+      planId: plan.id,
+      billingCycle: plan.billingCycle,
+      weightGrams: sel.weightGrams,
+      productVariantIdOrName: sel.productVariantId,
+      customDeliveriesCount: plan.deliveriesCount,
+      variantsList: variants,
+    });
+
     const query = new URLSearchParams({
       plan: plan.slug,
-      mode: config.mode,
-      flowers:
-        config.mode === "MIXED"
-          ? "Mixed Sacred Box (Marigold, Chrysanthemum & Red Hibiscus)"
-          : config.selectedFlowers.join(", "),
+      weight: String(resolved.weightGrams),
+      variantId: resolved.variant.id,
+      flowers: `${resolved.weightGrams}g ${resolved.variant.name} (${resolved.variant.marathiName})`,
     }).toString();
     return `/checkout?${query}`;
   };
 
+  const currentGlobalWeight =
+    selections[plans[0]?.id || "plan-monthly"]?.weightGrams ||
+    availableWeights[0] ||
+    100;
+
   return (
-    <section id="plans" className="py-24 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl">
+    <section
+      id="plans"
+      className="py-20 sm:py-24 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl"
+    >
       <ScrollReveal>
-        {/* Header */}
         <div className="mx-auto max-w-3xl text-center space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-800/20 bg-[#071C15] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300 shadow-xs">
-            <Flower2 className="h-3.5 w-3.5 text-[#F05A36]" />
-            <span>Sacred Morning Subscriptions</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#E6DEC8] bg-[#F3ECE1] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-stone-800">
+            <Flower2 className="h-3.5 w-3.5 text-[#D95326]" />
+            <span>
+              Sacred Morning Subscriptions •{" "}
+              {availableWeights.map((w) => `${w}g`).join(" & ")}
+            </span>
           </div>
-          <h2 className="font-serif text-4xl sm:text-5xl font-bold tracking-tight text-stone-900">
-            Choose Your Daily Puja Plan
+          <h2 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-stone-900">
+            Choose Your Puja Plan & Flower Type
           </h2>
           <p className="text-sm sm:text-base text-stone-600 max-w-2xl mx-auto">
-            Delivered silently between{" "}
-            <strong className="text-emerald-950">5:00 AM – 8:00 AM</strong> across Thane (Pincodes 400601–400608). Click{" "}
-            <strong className="text-[#E8502B]">View Full Details</strong> to customize flowers or see complete benefits.
+            Select your daily pouch weight (
+            <strong className="text-stone-900">
+              {availableWeights.map((w) => `${w} gms`).join(" / ")}
+            </strong>
+            ) and pick from{" "}
+            <strong className="text-[#D95326]">
+              {variants.length} sacred flower varieties
+            </strong>{" "}
+            with special member savings.
           </p>
+
+          {/* Global Weight Switcher (Supports 100g, 150g + any custom weight Admin adds) */}
+          <div className="pt-2 flex items-center justify-center">
+            <div className="inline-flex flex-wrap items-center justify-center gap-1 rounded-2xl border border-[#E6DEC8] bg-white p-1.5 shadow-2xs">
+              {availableWeights.map((wt) => (
+                <button
+                  key={wt}
+                  type="button"
+                  onClick={() => setAllCardsWeight(wt)}
+                  className={`rounded-xl px-5 py-2.5 text-xs font-bold transition cursor-pointer ${
+                    currentGlobalWeight === wt
+                      ? "bg-[#D95326] text-white shadow-2xs"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  {wt} gms Pouch Plans
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </ScrollReveal>
 
-      {/* 3 Minimal, Uncluttered Luxury Cards */}
-      <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-stretch">
+      {/* Dynamic Grid of All Active Plans */}
+      <div className="mt-12 sm:mt-14 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:items-stretch">
         {plans.map((plan, idx) => {
           const isPopular = plan.isPopular;
-          const config = customizations[plan.id] || {
-            mode: "MIXED",
-            selectedFlowers: ["Marigold"],
+          const sel = selections[plan.id] || {
+            weightGrams: availableWeights[0] || 100,
+            productVariantId: variants[0]?.id || "prod-mixed-marigold",
           };
+          const resolved = resolvePlanVariantPricing({
+            planId: plan.id,
+            billingCycle: plan.billingCycle,
+            weightGrams: sel.weightGrams,
+            productVariantIdOrName: sel.productVariantId,
+            customDeliveriesCount: plan.deliveriesCount,
+            variantsList: variants,
+          });
+
           return (
-            <ScrollReveal key={plan.id} delayMs={idx * 150}>
+            <ScrollReveal key={plan.id} delayMs={idx * 110}>
               <div
                 className={`group relative flex flex-col h-full overflow-hidden rounded-[2rem] transition-all duration-300 ${
                   isPopular
-                    ? "border-2 border-[#D97706] bg-[#071C15] text-white shadow-2xl shadow-emerald-950/25 lg:-translate-y-3"
-                    : "border border-stone-200/90 bg-white text-stone-900 shadow-lg shadow-stone-900/5 hover:border-emerald-700/40 hover:shadow-xl"
+                    ? "border-2 border-[#D95326] bg-white text-stone-900 shadow-xl shadow-stone-900/10 lg:-translate-y-2"
+                    : "border border-[#E6DEC8] bg-white text-stone-900 shadow-md shadow-stone-900/5 hover:border-[#D95326]/60 hover:shadow-lg"
                 }`}
               >
                 {isPopular && (
-                  <div className="bg-gradient-to-r from-[#E8502B] via-[#D97706] to-[#E8502B] py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-white">
-                    ★ Most Loved • Best Monthly Value ★
+                  <div className="bg-[#D95326] py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-white">
+                    Most Popular • Best Value Plan
                   </div>
                 )}
 
                 {/* Image Showcase */}
                 <div
                   onClick={() => setActiveDetailPlan(plan)}
-                  className="relative aspect-16/10 w-full overflow-hidden bg-stone-100 cursor-pointer"
+                  className="relative aspect-16/9 w-full overflow-hidden bg-[#F3ECE1] cursor-pointer"
                 >
                   <img
-                    src={plan.imageUrl}
+                    src={resolved.variant.imageUrl || plan.imageUrl}
                     alt={plan.title}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#071C15] via-black/20 to-transparent" />
-                  {plan.badge && !isPopular && (
-                    <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3.5 py-1 text-[11px] font-bold text-emerald-950 shadow-sm backdrop-blur-md">
-                      {plan.badge}
-                    </span>
-                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950/75 via-stone-950/20 to-transparent" />
+
+                  <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3.5 py-1 text-[11px] font-bold text-stone-900 shadow-2xs">
+                    {plan.deliveriesCount}{" "}
+                    {plan.deliveriesCount === 1 ? "Morning" : "Mornings"}
+                  </span>
+
+                  {/* Savings Discount Pill on Top Right */}
+                  <span className="absolute right-4 top-4 rounded-full bg-[#D95326] px-3 py-1 text-[11px] font-bold text-white shadow-2xs flex items-center gap-1">
+                    <Tag className="h-3 w-3" />
+                    <span>Save {resolved.discountPercent}%</span>
+                  </span>
+
                   <div className="absolute bottom-3.5 left-4 right-4 flex items-center justify-between text-white">
-                    <div className="flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-md px-3 py-1 text-[11px] font-semibold border border-white/20">
-                      <Scale className="h-3 w-3 text-amber-300" />
-                      <span>{plan.pouchWeight}</span>
+                    <div className="flex items-center gap-1.5 rounded-full bg-stone-900/80 backdrop-blur-md px-3 py-1 text-[11px] font-semibold border border-white/20">
+                      <Scale className="h-3 w-3 text-[#F5D0A9]" />
+                      <span>{resolved.weightGrams} gms / morning</span>
                     </div>
-                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-emerald-200 border border-emerald-400/30">
-                      <Clock className="h-3 w-3 text-emerald-400" />
-                      <span>5:00 – 8:00 AM</span>
+                    <div className="flex items-center gap-1.5 rounded-full bg-stone-900/80 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-[#F5D0A9] border border-white/15">
+                      <Clock className="h-3 w-3 text-[#F5D0A9]" />
+                      <span>6:00 – 8:00 AM</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Minimal Card Body */}
+                {/* Card Body */}
                 <div className="flex flex-1 flex-col justify-between p-6 sm:p-7">
-                  <div>
-                    <h3
-                      className={`font-serif text-2xl font-bold ${
-                        isPopular ? "text-amber-50" : "text-stone-900"
-                      }`}
-                    >
-                      {plan.title}
-                    </h3>
-                    <p
-                      className={`mt-1 text-xs leading-relaxed ${
-                        isPopular ? "text-emerald-100/80" : "text-stone-500"
-                      }`}
-                    >
-                      {plan.subtitle}
-                    </p>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-stone-900">
+                        {plan.title}
+                      </h3>
+                      <p className="mt-1 text-xs text-stone-500 leading-relaxed">
+                        {plan.subtitle}
+                      </p>
+                    </div>
 
-                    {/* Compact Price Box */}
-                    <div
-                      className={`mt-5 rounded-2xl border p-4 flex items-center justify-between ${
-                        isPopular
-                          ? "border-emerald-800/80 bg-[#0B291F]"
-                          : "border-stone-200/80 bg-[#FAF7F2]"
-                      }`}
-                    >
+                    {/* Step 1 on Card: Dynamic Weight Selector */}
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">
+                        1. Select Daily Weight:
+                      </label>
+                      <div
+                        className="grid gap-1.5 rounded-xl bg-[#FAF6F0] p-1 border border-[#E6DEC8]"
+                        style={{
+                          gridTemplateColumns: `repeat(${Math.min(
+                            availableWeights.length,
+                            4
+                          )}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {availableWeights.map((wt) => {
+                          const active = resolved.weightGrams === wt;
+                          return (
+                            <button
+                              key={wt}
+                              type="button"
+                              onClick={() => setCardWeight(plan.id, wt)}
+                              className={`rounded-lg py-2 text-xs font-bold transition cursor-pointer ${
+                                active
+                                  ? "bg-stone-900 text-white shadow-2xs"
+                                  : "text-stone-600 hover:text-stone-900"
+                              }`}
+                            >
+                              {wt}g
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Step 2 on Card: Flower Varieties Selector with Strikethrough MRP */}
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">
+                        2. Choose Flower Type ({variants.length} Varieties):
+                      </label>
+                      <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                        {variants.map((v) => {
+                          const isSelected = resolved.variant.id === v.id;
+                          const itemPricing = resolvePlanVariantPricing({
+                            planId: plan.id,
+                            billingCycle: plan.billingCycle,
+                            weightGrams: resolved.weightGrams,
+                            productVariantIdOrName: v.id,
+                            customDeliveriesCount: plan.deliveriesCount,
+                            variantsList: variants,
+                          });
+
+                          return (
+                            <button
+                              key={v.id}
+                              type="button"
+                              onClick={() =>
+                                setCardProductVariant(plan.id, v.id)
+                              }
+                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition cursor-pointer ${
+                                isSelected
+                                  ? "border-[#D95326] bg-[#FFF3EC] text-stone-900 font-bold"
+                                  : "border-[#E6DEC8] bg-[#FAF6F0]/60 text-stone-700 hover:border-stone-400"
+                              }`}
+                            >
+                              <span className="truncate pr-2">
+                                {v.srNo}. {v.name}{" "}
+                                <span className="text-[11px] text-stone-500 font-normal">
+                                  ({v.marathiName})
+                                </span>
+                              </span>
+                              <span className="shrink-0 flex items-center gap-1.5">
+                                <span className="text-[11px] text-stone-400 line-through font-normal">
+                                  ₹{itemPricing.mrp.toLocaleString("en-IN")}
+                                </span>
+                                <span className="font-bold text-[#D95326]">
+                                  ₹{itemPricing.price.toLocaleString("en-IN")}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Dynamic Calculated Price Box with Crossed-Out MRP & Savings Badge */}
+                    <div className="rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] p-4 flex items-center justify-between">
                       <div>
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-widest block ${
-                            isPopular ? "text-emerald-300/80" : "text-stone-400"
-                          }`}
-                        >
-                          Prepaid Plan
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 block">
+                          {resolved.weightGrams}g • {resolved.variant.name}
                         </span>
-                        <div className="flex items-baseline gap-1.5 mt-0.5">
-                          <span
-                            className={`font-serif text-3xl sm:text-4xl font-bold ${
-                              isPopular ? "text-white" : "text-stone-900"
-                            }`}
-                          >
-                            ₹{plan.price.toLocaleString("en-IN")}
+                        <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
+                          <span className="text-sm font-semibold text-stone-400 line-through">
+                            ₹{resolved.mrp.toLocaleString("en-IN")}
                           </span>
-                          <span
-                            className={`text-xs font-semibold ${
-                              isPopular ? "text-emerald-200/70" : "text-stone-500"
-                            }`}
-                          >
-                            / {plan.billingCycle}
+                          <span className="font-serif text-3xl sm:text-4xl font-bold text-stone-900">
+                            ₹{resolved.price.toLocaleString("en-IN")}
                           </span>
                         </div>
+                        <span className="inline-block mt-1 text-[11px] font-bold text-[#D95326]">
+                          You Save ₹{resolved.savedAmount.toLocaleString("en-IN")}{" "}
+                          ({resolved.discountPercent}% OFF)
+                        </span>
                       </div>
                       <div className="text-right">
-                        <span className="inline-block rounded-lg bg-[#E8502B] px-2.5 py-1 text-xs font-bold text-white">
-                          ₹{plan.perDayEffectivePrice} / morning
+                        <span className="inline-block rounded-lg bg-[#D95326] px-2.5 py-1 text-xs font-bold text-white">
+                          ₹{resolved.perDayEffectivePrice} / day
                         </span>
-                        <p
-                          className={`mt-1 text-[11px] font-semibold ${
-                            isPopular ? "text-amber-200" : "text-emerald-900"
-                          }`}
-                        >
+                        <p className="mt-1 text-[11px] font-semibold text-stone-600">
                           {plan.deliveriesCount}{" "}
                           {plan.deliveriesCount === 1
                             ? "Morning Drop"
@@ -272,71 +408,35 @@ export function PlanCards({
                         </p>
                       </div>
                     </div>
-
-                    {/* Current Mode Pill */}
-                    <div className="mt-4 flex items-center justify-between text-xs">
-                      <span
-                        className={
-                          isPopular ? "text-emerald-200/80" : "text-stone-500"
-                        }
-                      >
-                        Flower Selection:
-                      </span>
-                      <span
-                        className={`font-bold ${
-                          isPopular ? "text-amber-300" : "text-emerald-900"
-                        }`}
-                      >
-                        {config.mode === "MIXED"
-                          ? "Mixed Sacred Box"
-                          : `Custom (${config.selectedFlowers.join(", ")})`}
-                      </span>
-                    </div>
-
-                    {/* Short Highlights */}
-                    <ul
-                      className={`mt-4 space-y-2 border-t pt-4 text-xs ${
-                        isPopular
-                          ? "border-emerald-800/80 text-emerald-100"
-                          : "border-stone-100 text-stone-700"
-                      }`}
-                    >
-                      {plan.shortHighlights.map((item) => (
-                        <li key={item} className="flex items-center gap-2">
-                          <Check
-                            className={`h-3.5 w-3.5 shrink-0 ${
-                              isPopular ? "text-amber-300" : "text-emerald-700"
-                            }`}
-                          />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-7 space-y-2.5 pt-2">
+                  <div className="mt-6 space-y-2.5 pt-2">
                     <button
                       type="button"
                       onClick={() => setActiveDetailPlan(plan)}
-                      className={`flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-xs font-bold transition cursor-pointer ${
-                        isPopular
-                          ? "border-emerald-700 bg-emerald-950/70 text-amber-200 hover:bg-emerald-900"
-                          : "border-stone-300 bg-[#FAF7F2] text-stone-800 hover:border-[#E8502B] hover:text-[#E8502B]"
-                      }`}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] py-3 text-xs font-bold text-stone-800 hover:border-[#D95326] hover:text-[#D95326] transition cursor-pointer"
                     >
                       <Eye className="h-3.5 w-3.5" />
-                      <span>View Full Details & Customize Flowers</span>
+                      <span>
+                        Compare All {variants.length} Prices & Discounts
+                      </span>
                     </button>
+
                     <Link
                       href={buildCheckoutUrl(plan)}
                       className={`flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition ${
                         isPopular
-                          ? "bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-[#D97706] text-white shadow-lg shadow-orange-500/30 hover:brightness-110"
-                          : "bg-[#071C15] text-white hover:bg-[#E8502B]"
+                          ? "bg-[#D95326] hover:bg-[#BA421B] text-white shadow-md"
+                          : "bg-stone-900 text-white hover:bg-[#D95326]"
                       }`}
                     >
-                      <span>Subscribe to {plan.title}</span>
+                      <span>
+                        Subscribe • ₹{resolved.price.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-xs font-normal text-white/75 line-through">
+                        ₹{resolved.mrp.toLocaleString("en-IN")}
+                      </span>
                       <ArrowUpRight className="h-4 w-4" />
                     </Link>
                   </div>
@@ -347,10 +447,10 @@ export function PlanCards({
         })}
       </div>
 
-      {/* PLAN FULL DETAIL & CHECKBOX CUSTOMIZER MODAL */}
+      {/* PLAN FULL DETAIL & DISCOUNT RATE CARD MODAL */}
       {activeDetailPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs">
-          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-stone-200 bg-white p-6 sm:p-8 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[#E6DEC8] bg-white p-6 sm:p-8 shadow-2xl">
             <button
               type="button"
               onClick={() => setActiveDetailPlan(null)}
@@ -358,154 +458,150 @@ export function PlanCards({
             >
               <X className="h-4 w-4" />
             </button>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 border-b border-stone-100 pb-5">
-              <img
-                src={activeDetailPlan.imageUrl}
-                alt={activeDetailPlan.title}
-                className="h-20 w-28 rounded-2xl object-cover border border-stone-200"
-              />
-              <div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950 px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-300">
-                  <Sparkles className="h-3 w-3 text-[#F05A36]" />
-                  <span>{activeDetailPlan.pouchWeight}</span>
-                </span>
-                <h3 className="mt-1 font-serif text-2xl sm:text-3xl font-bold text-stone-900">
-                  {activeDetailPlan.title}
-                </h3>
-                <p className="text-xs text-stone-500">
-                  ₹{activeDetailPlan.price} / {activeDetailPlan.billingCycle} (₹
-                  {activeDetailPlan.perDayEffectivePrice} per morning •{" "}
-                  {activeDetailPlan.deliveriesCount} deliveries)
-                </p>
-              </div>
-            </div>
 
-            {/* Interactive Checkbox Flower Selector inside Modal */}
             {(() => {
-              const config = customizations[activeDetailPlan.id] || {
-                mode: "MIXED",
-                selectedFlowers: ["Marigold"],
+              const sel = selections[activeDetailPlan.id] || {
+                weightGrams: availableWeights[0] || 100,
+                productVariantId: variants[0]?.id || "prod-mixed-marigold",
               };
+              const resolved = resolvePlanVariantPricing({
+                planId: activeDetailPlan.id,
+                billingCycle: activeDetailPlan.billingCycle,
+                weightGrams: sel.weightGrams,
+                productVariantIdOrName: sel.productVariantId,
+                customDeliveriesCount: activeDetailPlan.deliveriesCount,
+                variantsList: variants,
+              });
+
               return (
-                <div className="mt-6 space-y-6">
-                  <div className="rounded-2xl border border-orange-200/80 bg-[#FAF7F2] p-5 space-y-4">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#E8502B] flex items-center gap-1.5">
-                      <SlidersHorizontal className="h-4 w-4" />
+                <div className="space-y-6">
+                  <div className="border-b border-stone-100 pb-4">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#F3ECE1] border border-[#E6DEC8] px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#D95326]">
+                      <Sparkles className="h-3 w-3" />
                       <span>
-                        Customize Your Flowers (Tick Mixed OR Separate Checkboxes):
+                        {activeDetailPlan.deliveriesCount} Morning Deliveries •
+                        6:00 AM – 8:00 AM
                       </span>
                     </span>
-
-                    {/* Checkbox 1: Mixed Pack */}
-                    <label
-                      onClick={() => toggleMixedCheckbox(activeDetailPlan.id)}
-                      className={`flex items-start gap-3 rounded-xl border p-3.5 text-xs transition cursor-pointer select-none ${
-                        config.mode === "MIXED"
-                          ? "border-[#E8502B] bg-white text-stone-900 shadow-xs"
-                          : "border-stone-200 bg-white/70 text-stone-600"
-                      }`}
-                    >
-                      <span
-                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                          config.mode === "MIXED"
-                            ? "border-[#E8502B] bg-[#E8502B] text-white"
-                            : "border-stone-400 bg-white"
-                        }`}
-                      >
-                        {config.mode === "MIXED" && (
-                          <Check className="h-3 w-3 stroke-[3]" />
-                        )}
-                      </span>
-                      <div>
-                        <p className="font-bold text-sm text-stone-900">
-                          Predefined Mixed Sacred Assortment
-                        </p>
-                        <p className="mt-0.5 text-xs text-stone-500">
-                          {activeDetailPlan.mixedPredefinedBreakdown}
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Checkboxes 2: Separate Flowers with Marathi Names */}
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
-                        OR Tick Specific Separate Flowers (English + Marathi):
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        {availableFlowers.map((flw) => {
-                          const isChecked =
-                            config.mode === "CUSTOM" &&
-                            config.selectedFlowers.includes(flw.name);
-                          return (
-                            <label
-                              key={flw.id}
-                              onClick={() =>
-                                toggleFlowerCheckbox(
-                                  activeDetailPlan.id,
-                                  flw.name
-                                )
-                              }
-                              className={`flex items-center gap-2.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer select-none ${
-                                isChecked
-                                  ? "border-emerald-700 bg-emerald-50 text-emerald-950 shadow-2xs"
-                                  : "border-stone-200 bg-white text-stone-700 hover:border-emerald-400"
-                              }`}
-                            >
-                              <span
-                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                                  isChecked
-                                    ? "border-emerald-700 bg-emerald-700 text-white"
-                                    : "border-stone-400 bg-white"
-                                }`}
-                              >
-                                {isChecked && (
-                                  <Check className="h-3 w-3 stroke-[3]" />
-                                )}
-                              </span>
-                              <div>
-                                <span>{flw.name}</span>
-                                <span className="block text-[10px] text-stone-500 font-normal">
-                                  ({flw.marathiName})
-                                </span>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <h3 className="mt-1.5 font-serif text-2xl sm:text-3xl font-bold text-stone-900">
+                      {activeDetailPlan.title} — Special Member Rate Card
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      Select your daily pouch weight and flower variety below:
+                    </p>
                   </div>
 
-                  {/* Complete Plan Features List */}
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">
-                      Complete Plan Benefits & Sacred Promise
-                    </h4>
-                    <ul className="space-y-2.5 text-xs sm:text-sm text-stone-700">
-                      {activeDetailPlan.features.map((feat) => (
-                        <li key={feat} className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
-                            <Check className="h-3 w-3 stroke-[3]" />
+                  {/* Weight Tabs inside Modal */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {availableWeights.map((wt) => (
+                      <button
+                        key={wt}
+                        type="button"
+                        onClick={() => setCardWeight(activeDetailPlan.id, wt)}
+                        className={`rounded-xl px-5 py-2.5 text-xs font-bold transition cursor-pointer ${
+                          resolved.weightGrams === wt
+                            ? "bg-[#D95326] text-white"
+                            : "border border-[#E6DEC8] bg-[#FAF6F0] text-stone-700"
+                        }`}
+                      >
+                        {wt} gms Daily Pouch
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* All Products Table for Active Plan with Strikethrough MRP */}
+                  <div className="rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] p-4 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-stone-500 pb-1 border-b border-[#E6DEC8]">
+                      <span>Flower Variety ({resolved.weightGrams} gms)</span>
+                      <span>{activeDetailPlan.title} Offer Price</span>
+                    </div>
+                    {variants.map((v: PlanProductVariant) => {
+                      const isChecked = resolved.variant.id === v.id;
+                      const rowPricing = resolvePlanVariantPricing({
+                        planId: activeDetailPlan.id,
+                        billingCycle: activeDetailPlan.billingCycle,
+                        weightGrams: resolved.weightGrams,
+                        productVariantIdOrName: v.id,
+                        customDeliveriesCount:
+                          activeDetailPlan.deliveriesCount,
+                        variantsList: variants,
+                      });
+
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() =>
+                            setCardProductVariant(activeDetailPlan.id, v.id)
+                          }
+                          className={`flex w-full items-center justify-between rounded-xl border p-3 text-left text-xs transition cursor-pointer ${
+                            isChecked
+                              ? "border-[#D95326] bg-white text-stone-900 shadow-2xs"
+                              : "border-transparent bg-white/60 text-stone-700 hover:bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                isChecked
+                                  ? "border-[#D95326] bg-[#D95326] text-white"
+                                  : "border-stone-400 bg-white"
+                              }`}
+                            >
+                              {isChecked && (
+                                <Check className="h-2.5 w-2.5 stroke-[3]" />
+                              )}
+                            </span>
+                            <div>
+                              <span className="font-bold">
+                                {v.srNo}. {v.name}
+                              </span>{" "}
+                              <span className="text-stone-500">
+                                ({v.marathiName})
+                              </span>
+                            </div>
                           </div>
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2 justify-end">
+                              <span className="text-xs text-stone-400 line-through">
+                                ₹{rowPricing.mrp.toLocaleString("en-IN")}
+                              </span>
+                              <span className="font-serif text-base font-bold text-[#D95326]">
+                                ₹{rowPricing.price.toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <span className="block text-[10px] text-stone-500">
+                              ₹{rowPricing.perDayEffectivePrice}/day • Save{" "}
+                              {rowPricing.discountPercent}%
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Modal Footer CTA */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-100 pt-5">
-                    <div className="flex items-center gap-2 text-xs text-stone-500">
-                      <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-100 pt-4">
+                    <div className="flex items-center gap-2 text-xs text-stone-600">
+                      <ShieldCheck className="h-4 w-4 text-[#D95326]" />
                       <span>
-                        You can also change flowers day-wise in My-Orders
+                        Selected:{" "}
+                        <strong>
+                          {resolved.weightGrams}g {resolved.variant.name}
+                        </strong>{" "}
+                        (Save ₹{resolved.savedAmount})
                       </span>
                     </div>
                     <Link
                       href={buildCheckoutUrl(activeDetailPlan)}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#E8502B] via-[#F05A36] to-[#D97706] px-8 py-4 text-sm font-bold text-white shadow-lg shadow-orange-500/25"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] px-8 py-4 text-sm font-bold text-white shadow-md transition"
                     >
                       <span>
-                        Proceed to Subscribe • ₹{activeDetailPlan.price}
+                        Proceed to Subscribe • ₹
+                        {resolved.price.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-xs font-normal text-white/75 line-through">
+                        ₹{resolved.mrp.toLocaleString("en-IN")}
                       </span>
                       <ArrowUpRight className="h-4 w-4" />
                     </Link>
