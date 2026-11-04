@@ -303,7 +303,7 @@ export const INITIAL_FLOWERS: FlowerProduct[] = [
     subtitle: "Sacred Mixed Mandir Puja Assortment",
     botanicalNote:
       "Curated assortment of fresh daily temple flowers for complete morning worship.",
-    imageUrl: "/images/hibiscus.jpeg",
+    imageUrl: "/images/monthly.webp",
     basePricePer100g: 49,
     unitType: "WEIGHT",
     availableWeights: [

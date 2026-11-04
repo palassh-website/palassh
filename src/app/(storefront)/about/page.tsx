@@ -235,7 +235,7 @@ Flowers that pray with you.
                 {
                   name: "Pooja Flower Assortment",
                   marathi: "पूजा फुले",
-                  image: "/images/hibiscus.jpeg",
+                  image: "/images/monthly.webp",
                   deity: "100g from ₹49 | 150g from ₹65",
                   desc: "Complete daily home mandir assortment curated for morning archana across all deities.",
                 },
