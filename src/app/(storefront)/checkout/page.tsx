@@ -960,7 +960,7 @@ function CheckoutContent() {
                       onChange={(e) => {
                         setFormData({
                           ...formData,
-                          startDate: e.target.value,
+                          societyName: e.target.value,
                         });
                         if (formError) setFormError("");
                       }}
@@ -982,7 +982,7 @@ function CheckoutContent() {
                       onChange={(e) => {
                         setFormData({
                           ...formData,
-                          startDate: e.target.value,
+                          flatWing: e.target.value,
                         });
                         if (formError) setFormError("");
                       }}

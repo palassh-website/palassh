@@ -250,7 +250,11 @@ export function PlanCards({
                   className="relative aspect-16/9 w-full overflow-hidden bg-[#F3ECE1] cursor-pointer"
                 >
                   <img
-                    src={resolved.variant.imageUrl || plan.imageUrl}
+                    src={
+                      plan.id === "plan-monthly" || plan.slug === "monthly-pack"
+                        ? "/images/monthly.webp"
+                        : resolved.variant.imageUrl || plan.imageUrl
+                    }
                     alt={plan.title}
                     loading="lazy"
                     decoding="async"
