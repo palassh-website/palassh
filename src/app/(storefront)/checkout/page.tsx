@@ -470,7 +470,11 @@ function CheckoutContent() {
         localStorage.setItem(
           "palassh_active_subscription",
           JSON.stringify(localSub)
+
         );
+      //Fix: Immediately notify Navbar and same-tab listeners of the new subscriber tier!
+      window.dispatchEvent(new Event("palassh-store-access-updated"));
+      window.dispatchEvent(new Event("palassh-cart-updated"));
       } catch {
         // Ignore
       }
@@ -503,7 +507,7 @@ function CheckoutContent() {
 
     if (formData.startDate < earliestDeliveryDate) {
       setFormError(
-        `1-Day Farm Buffer Required: Earliest morning delivery available is ${earliestDeliveryDate} (6:00 AM – 8:00 AM).`
+        `Order Before 11:45 PM for Next-Day Delivery: Earliest morning delivery available is ${earliestDeliveryDate} (6:00 AM – 8:00 AM)..`
       );
       return;
     }
@@ -953,12 +957,13 @@ function CheckoutContent() {
                       type="text"
                       required
                       value={formData.societyName}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setFormData({
                           ...formData,
-                          societyName: e.target.value,
-                        })
-                      }
+                          startDate: e.target.value,
+                        });
+                        if (formError) setFormError("");
+                      }}
                       placeholder="e.g. Hiranandani Estate, Thane West"
                       className="w-full rounded-xl border border-[#E6DEC8] bg-white px-3.5 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#D95326] focus:outline-none"
                     />
@@ -974,9 +979,13 @@ function CheckoutContent() {
                       type="text"
                       required
                       value={formData.flatWing}
-                      onChange={(e) =>
-                        setFormData({ ...formData, flatWing: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          startDate: e.target.value,
+                        });
+                        if (formError) setFormError("");
+                      }}
                       placeholder="e.g. B-1204"
                       className="w-full rounded-xl border border-[#E6DEC8] bg-white px-3.5 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#D95326] focus:outline-none"
                     />
@@ -1012,9 +1021,13 @@ function CheckoutContent() {
                   addonWindow.eligibleDates.length > 0 ? (
                     <select
                       value={formData.startDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, startDate: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          startDate: e.target.value,
+                        });
+                        if (formError) setFormError("");
+                      }}
                       className="w-full max-w-xs rounded-xl border border-[#E6DEC8] bg-white px-3.5 py-2.5 text-sm font-bold text-stone-900 focus:border-[#D95326] focus:outline-none"
                     >
                       {addonWindow.eligibleDates.map((dt) => (
@@ -1037,12 +1050,13 @@ function CheckoutContent() {
                             : undefined
                         }
                         value={formData.startDate}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setFormData({
                             ...formData,
                             startDate: e.target.value,
-                          })
-                        }
+                          });
+                          if (formError) setFormError("");
+                        }}
                         className="w-full rounded-xl border border-[#E6DEC8] bg-white pl-10 pr-3.5 py-2.5 text-sm font-bold text-stone-900 focus:border-[#D95326] focus:outline-none"
                       />
                     </div>

@@ -60,6 +60,7 @@ export function getEnvConfig() {
       process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
     ),
     RAZORPAY_KEY_SECRET: cleanEnvValue(process.env.RAZORPAY_KEY_SECRET),
+    RAZORPAY_WEBHOOK_SECRET: cleanEnvValue(process.env.RAZORPAY_WEBHOOK_SECRET),
   };
 }
 

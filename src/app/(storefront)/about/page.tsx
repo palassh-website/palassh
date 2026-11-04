@@ -62,15 +62,31 @@ export default function AboutUsPage() {
                 <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.1]">
                   PALASSH:{" "}
                   <span className="block mt-1 text-[#F5D0A9] italic font-normal font-serif">
-                    flowers that pray with you.
+                   The Founder's Story To Start Palassh
                   </span>
                 </h1>
 
                 <p className="text-xs sm:text-base lg:text-lg text-stone-300 leading-relaxed max-w-2xl">
-                  Born in Thane, PALASSH was started with a simple realization:
-                  the flowers we offer to God every morning should be
-                  overflowing with life, natural dew, and farm fragrance—never
-                  wilted from 4 days inside a market ice box.
+                
+
+We are engineers by profession. Logic, circuits, and plannings were our world. But flowers were always our heart.
+
+What started as a hobby, watering a few plants on our balcony, slowly became a passion.<p></p> The Peace, the Prayer, the Purity that a flower brings we couldn’t find it anywhere else.
+
+And then came Reeva.
+<p></p>
+Our baby girl. Since she was a few months old, she had only one true love flowers. She would light up, smile, and hold a single flower like it was the whole world. Watching her love for flowers inspired us to take the leap we were always scared to take.
+<p></p>
+That’s how PALASSH was born.
+
+Reeva is another name for the holy Narmada River. And Palassh, the flame of the forest is the flower that blooms beautifully on the banks of Narmada. For us, it felt like a circle was complete.
+
+Reeva, Narmada, Palash. Our daughter, our roots, and our passion.
+<p></p>
+Palassh is not just a flower business for us. It is our family’s prayer, made of flowers.
+
+Welcome to Palassh.
+Flowers that pray with you.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -94,7 +110,7 @@ export default function AboutUsPage() {
               <div className="lg:col-span-5">
                 <div className="relative mx-auto max-w-sm overflow-hidden rounded-3xl border-4 border-white/15 bg-stone-900 shadow-2xl aspect-[4/3]">
                   <img
-                    src="/images/hero-banner.jpg"
+                    src="/images/founder.webp"
                     alt="PALASSH Sacred Morning Blooms"
                     loading="lazy"
                     decoding="async"
@@ -103,10 +119,11 @@ export default function AboutUsPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1C1917] via-transparent to-transparent" />
                   <div className="absolute bottom-3.5 left-3.5 right-3.5 rounded-2xl border border-white/15 bg-black/65 p-3.5 backdrop-blur-md">
                     <p className="font-serif text-sm font-bold text-[#F5D0A9]">
-                      100% Zero Cold-Storage Guarantee
+                      The Heads Behind Palassh
                     </p>
                     <p className="text-[11px] text-stone-200">
-                      1-Day Harvest Buffer • Delivered 6:00 AM – 8:00 AM
+                      Mrs .Ankita Jagtap  &  Mr. Pratik Jagtap 
+
                     </p>
                   </div>
                 </div>
@@ -137,10 +154,10 @@ export default function AboutUsPage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                time: "01:30 AM",
+                time: "08:00 PM",
                 icon: Sparkles,
-                title: "Farm Harvest After 1-Day Buffer",
-                desc: "Partner farmers hand-pluck fresh Marigold (झेंडू), Pooja Flowers, and Shevanti (शेवंती) buds under cool night skies.",
+                title: "Harvesting Process ",
+                desc: "Partner farmers hand-pluck fresh flower buds 12 to 15 hours before you order .",
               },
               {
                 time: "04:00 AM",

@@ -50,12 +50,14 @@ export function Navbar() {
 
     window.addEventListener("palassh-cart-updated", syncNavbarCart);
     window.addEventListener("palassh-plans-updated", syncNavbarCart);
+    window.addEventListener("palassh-store-access-updated", syncNavbarCart);
     window.addEventListener("storage", syncNavbarCart);
     window.addEventListener("palassh-open-cart", handleOpenDrawer);
 
     return () => {
       window.removeEventListener("palassh-cart-updated", syncNavbarCart);
       window.removeEventListener("palassh-plans-updated", syncNavbarCart);
+      window.removeEventListener("palassh-store-access-updated", syncNavbarCart);
       window.removeEventListener("storage", syncNavbarCart);
       window.removeEventListener("palassh-open-cart", handleOpenDrawer);
     };
@@ -318,9 +320,9 @@ export function Navbar() {
                     <span>Basket Weight: {totalCartGrams}g</span>
                   </p>
                   <p className="text-[11px] text-stone-600">
-                    {customerTier === "NORMAL"
-                      ? "Plan Members Only: Purchase any 1 Day, Weekly, or Monthly Plan to unlock loose flower shopping."
-                      : `Active Plan Holder (${customerTier}): You are eligible for member loose flower shopping.`}
+                    {customerTier !== "WEEKLY" && customerTier !== "MONTHLY"
+                     ? "Weekly & Monthly Subscribers Only: Subscribe to a Weekly or Monthly Plan to unlock 100g/150g loose flower Add-Ons."
+                     : `Active Subscriber (${customerTier}): You are eligible for daily 100g/150g loose flower Add-Ons.`}
                   </p>
                 </div>
 

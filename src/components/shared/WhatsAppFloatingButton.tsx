@@ -13,7 +13,7 @@ export function WhatsAppFloatingButton() {
 
   const phoneNumber = "919167034671";
   const defaultMessage = encodeURIComponent(
-    "Namaste PALASSH, I have an inquiry about sacred morning puja flowers."
+    "Hello PALASSH, I Vistied Your website and i need your help about :"
   );
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${defaultMessage}`;
 

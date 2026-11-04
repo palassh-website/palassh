@@ -17,9 +17,6 @@ export interface CheckoutCartItemInput {
   grams: number;
 }
 
-/**
- * Bug 9 Fix: Strictly validates real calendar YYYY-MM-DD strings (rejects "2026-99-99", "9999-99-99", etc.)
- */
 export function isValidIsoDateString(dateStr: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const d = new Date(`${dateStr}T00:00:00Z`);
@@ -113,30 +110,29 @@ export async function getCachedServerStoreConfig(): Promise<ServerConfigCache> {
   return serverConfigCache;
 }
 
+/**
+ * Authoritative 11:45 PM IST Cut-Off Rule:
+ * - Before 11:45 PM IST -> Earliest delivery is TOMORROW morning (Today + 1 Day)
+ * - At or after 11:45 PM IST -> Earliest delivery is DAY AFTER TOMORROW (Today + 2 Days, 1-day buffer)
+ */
 export function getServerEarliestDeliveryDateIst(): {
   todayIst: string;
-  bufferDayIst: string;
+  tomorrowIst: string;
   earliestDeliveryIst: string;
+  isBefore1145PmIst: boolean;
+  formattedTimeIst: string;
 } {
   const clock = getCurrentIstClock();
-  const base = new Date(`${clock.todayDateStr}T00:00:00+05:30`);
-  base.setDate(base.getDate() + 2);
-
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(base);
-
-  const yyyy = parts.find((p) => p.type === "year")?.value || "2026";
-  const mm = parts.find((p) => p.type === "month")?.value || "01";
-  const dd = parts.find((p) => p.type === "day")?.value || "01";
+  const earliestDeliveryIst = clock.isBefore1145PmIst
+    ? clock.tomorrowDateStr
+    : clock.dayAfterTomorrowDateStr;
 
   return {
     todayIst: clock.todayDateStr,
-    bufferDayIst: clock.tomorrowDateStr,
-    earliestDeliveryIst: `${yyyy}-${mm}-${dd}`,
+    tomorrowIst: clock.tomorrowDateStr,
+    earliestDeliveryIst,
+    isBefore1145PmIst: clock.isBefore1145PmIst,
+    formattedTimeIst: clock.formattedTimeIst,
   };
 }
 
@@ -157,12 +153,17 @@ export function buildSubscriptionScheduleRows(params: {
     orderNote: string;
   }[] = [];
 
-  const { earliestDeliveryIst } = getServerEarliestDeliveryDateIst();
+  const clock = getCurrentIstClock();
   const isInputValid = isValidIsoDateString(params.startDateStr);
+
+  // Respect the locked snapshot startDateStr as long as it is >= tomorrowDateStr
+  // (Prevents the 11:44 PM -> 11:46 PM payment crossover from shifting a valid tomorrow order!)
   const effectiveStartStr =
-    isInputValid && params.startDateStr >= earliestDeliveryIst
+    isInputValid && params.startDateStr >= clock.tomorrowDateStr
       ? params.startDateStr
-      : earliestDeliveryIst;
+      : clock.isBefore1145PmIst
+      ? clock.tomorrowDateStr
+      : clock.dayAfterTomorrowDateStr;
 
   const baseDate = new Date(`${effectiveStartStr}T00:00:00Z`);
 
@@ -215,7 +216,7 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 2. Bug 9 Fix: Validate real calendar YYYY-MM-DD before comparing
+  // 2. Validate real calendar YYYY-MM-DD
   if (!isValidIsoDateString(input.deliveryDate)) {
     return {
       valid: false,
@@ -225,12 +226,21 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  const { todayIst, bufferDayIst, earliestDeliveryIst } =
-    getServerEarliestDeliveryDateIst();
+  // 3. Enforce 11:45 PM IST Cut-Off Rule
+  const {
+    todayIst,
+    tomorrowIst,
+    earliestDeliveryIst,
+    isBefore1145PmIst,
+    formattedTimeIst,
+  } = getServerEarliestDeliveryDateIst();
+
   if (input.deliveryDate < earliestDeliveryIst) {
     return {
       valid: false,
-      error: `1-Day Farm Buffer Required: For bookings placed today (${todayIst}), ${bufferDayIst} is reserved for fresh farm harvest sorting. Earliest morning delivery is ${earliestDeliveryIst} (6:00 AM – 8:00 AM).`,
+      error: isBefore1145PmIst
+        ? `Earliest morning delivery available is tomorrow (${earliestDeliveryIst}, 6:00 AM – 8:00 AM).`
+        : `11:45 PM Cut-Off Passed (Current time: ${formattedTimeIst} on ${todayIst}): Orders placed after 11:45 PM have a 1-day farm buffer (${tomorrowIst}), so your earliest morning delivery is ${earliestDeliveryIst} (6:00 AM – 8:00 AM).`,
       amountInRupees: 0,
       totalGrams: 0,
     };
@@ -238,7 +248,7 @@ export async function validateAndCalculateOrderServerSide(input: {
 
   const config = await getCachedServerStoreConfig();
 
-  // 3. Subscription Plan Validation
+  // 4. Subscription Plan Validation
   if (input.orderType === "SUBSCRIPTION") {
     const matchedPlan =
       config.plans.find(
@@ -289,7 +299,7 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 4. Subscriber Loose Flower Add-On Validation (Strictly WEEKLY or MONTHLY Active Subscribers Only)
+  // 5. Subscriber Loose Flower Add-On Validation (Strictly WEEKLY or MONTHLY Active Subscribers Only)
   if (input.customerTier !== "WEEKLY" && input.customerTier !== "MONTHLY") {
     return {
       valid: false,
@@ -300,7 +310,6 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 4B. Bug 8 Fix: Always evaluate getSubscriberAddonWindow even when activeSubScheduledDates is empty []
   const scheduledDates = Array.isArray(input.activeSubScheduledDates)
     ? input.activeSubScheduledDates
     : [];
@@ -338,7 +347,6 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 4C. Enforce Strictly 1 Single Pack of 100g OR 150g per Day
   const items = input.cartItems || [];
   if (items.length === 0) {
     return {
@@ -371,7 +379,6 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 4D. Check if Customer already booked an Add-On for this exact deliveryDate in MySQL
   if (input.customerId) {
     const existingAddonOnDate = await db.oneTimeOrder.findFirst({
       where: {

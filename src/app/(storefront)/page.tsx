@@ -96,7 +96,7 @@ export function getDynamicHeroBanners(
       titleLine1: "Marigold, Pooja Flowers",
       titleHighlight: "& Temple Shevanti.",
       subtitle:
-        "Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti plucked fresh at 1:30 AM.",
+        "Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti plucked fresh at 8:00 PM.",
       imageUrl: "/images/chrysanthemum.jpeg",
       primaryBtnText: "Compare 100g & 150g Plans",
       primaryBtnHref: "#plans",
@@ -110,7 +110,7 @@ export function getDynamicHeroBanners(
       titleLine1: "Subscribe Once,",
       titleHighlight: "Unlock Loose Shopping.",
       subtitle:
-        "Purchase any 1 Day, Weekly, or Monthly Plan to unlock exclusive member access to extra loose flower weight packs.",
+        "Subscribe to any Weekly or Monthly Plan to unlock exclusive member access to 100g or 150g daily loose flower Add-On packs.",
       imageUrl: "/images/hibiscus.jpeg",
       primaryBtnText: `Start Monthly Plan @ ${monthlyPrice}`,
       primaryBtnHref: "/checkout?plan=monthly-pack",
@@ -129,19 +129,19 @@ const SHOP_ADDRESS =
 
 const FAQS = [
   {
+    tag: "11:45 PM Next-Day Cut-Off",
+    q: "When will my first morning flower delivery start?",
+    a: "If you subscribe before 11:45 PM IST tonight, your fresh flowers are harvested at 1:30 AM and delivered tomorrow morning between 6:00 AM – 8:00 AM! Orders placed after 11:45 PM IST start the day after tomorrow.",
+  },
+  {
+    tag: "Member-Only Loose Flower Add-Ons",
+    q: "Who can purchase loose flower Add-On packs from the flower store?",
+    a: "Loose flower Add-On shopping (100g or 150g packs) is unlocked exclusively for active Weekly and Monthly Plan subscribers (up to 2 days before your plan ends).",
+  },
+  {
     tag: "7 Varieties in 100g & 150g",
     q: "What flower varieties and weights are available in your plans?",
     a: "We offer 7 sacred varieties—Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flower, Mixed Shevanti, White Shevanti, and Yellow Shevanti—available in both 100 gms and 150 gms daily pouches across 1 Day, Weekly, and Monthly plans.",
-  },
-  {
-    tag: "1-Day Farm Harvest Buffer",
-    q: "Why is there a 1-day buffer before my first flower delivery?",
-    a: "Because we never use cold-storage or old market stock. If you book a plan on November 2, November 3 serves as our 1-day farm harvest & Kalwa hub sorting buffer so your fresh flowers arrive on November 4 between 6:00 AM – 8:00 AM.",
-  },
-  {
-    tag: "Member-Only Loose Flower Shopping",
-    q: "Who can purchase loose flower packs from the flower store?",
-    a: "Loose flower shopping is reserved exclusively for customers who have purchased a 1 Day, Weekly, or Monthly Plan. Normal non-plan visitors must purchase a plan first to unlock loose flower shopping.",
   },
   {
     tag: "Pause Quota (Weekly vs Monthly)",
@@ -153,7 +153,7 @@ const FAQS = [
     q: "How do riders deliver between 6:00 AM – 8:00 AM without disturbing our sleep?",
     a: "We follow a strict Silent Devotion Protocol. Our riders never ring your doorbell or call you in the morning. Your breathable eco-pouch is gently hung on your main door handle.",
   },
-];const FAQ_JSON_LD = {
+]; const FAQ_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   mainEntity: FAQS.map((item) => ({
@@ -241,9 +241,8 @@ function RitualBeam() {
       className="pointer-events-none absolute left-16 right-16 top-14 hidden h-[3px] md:block"
     >
       <div
-        className={`h-full w-full origin-left rounded-full bg-gradient-to-r from-[#D95326] via-[#E6DEC8] to-[#D95326] ${
-          on ? "animate-beam-draw" : "scale-x-0"
-        }`}
+        className={`h-full w-full origin-left rounded-full bg-gradient-to-r from-[#D95326] via-[#E6DEC8] to-[#D95326] ${on ? "animate-beam-draw" : "scale-x-0"
+          }`}
       />
     </div>
   );
@@ -300,6 +299,7 @@ export default function HomePage() {
 
     window.addEventListener("palassh-cart-updated", syncState);
     window.addEventListener("palassh-plans-updated", syncState);
+    window.addEventListener("palassh-store-access-updated", syncState);
     window.addEventListener("storage", syncState);
 
     try {
@@ -315,6 +315,7 @@ export default function HomePage() {
     return () => {
       window.removeEventListener("palassh-cart-updated", syncState);
       window.removeEventListener("palassh-plans-updated", syncState);
+      window.removeEventListener("palassh-store-access-updated", syncState);
       window.removeEventListener("storage", syncState);
     };
   }, []);
@@ -391,10 +392,10 @@ export default function HomePage() {
       setPopupToast({
         visible: true,
         isError: true,
-        title: "Plan Members Only",
+        title: "Weekly & Monthly Subscribers Only",
         subtitle:
           validation.reason ||
-          "Please subscribe to a 1 Day, Weekly, or Monthly Plan to shop loose flowers.",
+          "Subscribe to a Weekly or Monthly Plan to unlock 100g/150g loose flower Add-Ons.",
       });
       toastTimerRef.current = setTimeout(() => {
         setPopupToast((prev) => ({ ...prev, visible: false }));
@@ -479,8 +480,9 @@ export default function HomePage() {
   const totalCartGrams = cart.reduce((acc, i) => acc + (i.grams || 100), 0);
   const homepageFlowers = flowers.slice(0, 3);
 
-  // Strict Rule: Normal user who hasn't bought ANY plan cannot shop loose flowers
-  const isLockedForNonPlanUser = customerTier === "NORMAL";
+  // Strict Rule: Only active WEEKLY and MONTHLY subscribers can shop loose flower Add-Ons
+   const isLockedForNonPlanUser =
+    customerTier !== "WEEKLY" && customerTier !== "MONTHLY";
   const activeSlideData = heroBanners[currentSlide] || DEFAULT_HERO_BANNERS[0];
 
   return (
@@ -494,11 +496,10 @@ export default function HomePage() {
       {/* NON-INTRUSIVE POPUP TOAST */}
       {popupToast.visible && (
         <div
-          className={`animate-toast-in fixed top-24 right-3 left-3 sm:left-auto sm:right-6 z-50 sm:max-w-sm overflow-hidden rounded-2xl border-2 p-4 text-white shadow-2xl ${
-            popupToast.isError
+          className={`animate-toast-in fixed top-24 right-3 left-3 sm:left-auto sm:right-6 z-50 sm:max-w-sm overflow-hidden rounded-2xl border-2 p-4 text-white shadow-2xl ${popupToast.isError
               ? "border-rose-400 bg-rose-950"
               : "border-[#D95326] bg-[#1C1917]"
-          }`}
+            }`}
         >
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-[#F5D0A9]">
@@ -561,16 +562,14 @@ export default function HomePage() {
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 transition-opacity duration-700 ease-out ${
-                  isActive
+                className={`absolute inset-0 transition-opacity duration-700 ease-out ${isActive
                     ? "opacity-100 z-10"
                     : "opacity-0 z-0 pointer-events-none"
-                }`}
+                  }`}
               >
                 <div
-                  className={`h-full w-full ${
-                    isActive ? "animate-hero-wipe" : ""
-                  }`}
+                  className={`h-full w-full ${isActive ? "animate-hero-wipe" : ""
+                    }`}
                 >
                   <img
                     src={slide.imageUrl}
@@ -662,11 +661,10 @@ export default function HomePage() {
                           key={b.id}
                           type="button"
                           onClick={() => setCurrentSlide(idx)}
-                          className={`relative h-2 rounded-full overflow-hidden transition-all duration-300 cursor-pointer ${
-                            isActive
+                          className={`relative h-2 rounded-full overflow-hidden transition-all duration-300 cursor-pointer ${isActive
                               ? "w-11 bg-white/25"
                               : "w-2.5 bg-white/35 hover:bg-white/60"
-                          }`}
+                            }`}
                           aria-label={`Slide ${idx + 1}`}
                         >
                           {isActive && (
@@ -847,11 +845,10 @@ export default function HomePage() {
                         prev === flower.id ? null : flower.id
                       );
                     }}
-                    className={`group flex flex-col justify-between h-full rounded-[2rem] border bg-white cursor-pointer transition-all duration-300 ${
-                      isCardUplifted
+                    className={`group flex flex-col justify-between h-full rounded-[2rem] border bg-white cursor-pointer transition-all duration-300 ${isCardUplifted
                         ? "border-[#D95326] -translate-y-1.5 shadow-xl"
                         : "border-[#E6DEC8] shadow-md hover:border-[#D95326]/60"
-                    }`}
+                      }`}
                   >
                     <div>
                       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#F3ECE1] rounded-t-[2rem]">
@@ -872,8 +869,8 @@ export default function HomePage() {
                             {inCartItem
                               ? `In Basket: ${inCartItem.grams}g`
                               : isLockedForNonPlanUser
-                              ? "Plan Holders Only"
-                              : "Member Stock"}
+                                ? "Plan Holders Only"
+                                : "Member Stock"}
                           </span>
                         </span>
 
@@ -920,11 +917,10 @@ export default function HomePage() {
                                       [flower.id]: wIdx,
                                     }));
                                   }}
-                                  className={`rounded-xl border py-2 px-1 text-center transition cursor-pointer ${
-                                    active
+                                  className={`rounded-xl border py-2 px-1 text-center transition cursor-pointer ${active
                                       ? "border-[#D95326] bg-[#FFF3EC] font-bold text-stone-900"
                                       : "border-[#E6DEC8] bg-[#FAF6F0] text-stone-600 hover:border-[#D95326]"
-                                  }`}
+                                    }`}
                                 >
                                   <span className="block text-xs font-bold">
                                     {wt.grams}g
@@ -1285,11 +1281,10 @@ export default function HomePage() {
                   return (
                     <div
                       key={item.q}
-                      className={`overflow-hidden rounded-2xl border transition-all duration-300 ${
-                        isOpen
+                      className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isOpen
                           ? "border-[#D95326] bg-[#FFF3EC]/40 shadow-xs"
                           : "border-[#E6DEC8] bg-white hover:border-[#D95326]/60"
-                      }`}
+                        }`}
                     >
                       <button
                         type="button"
@@ -1305,22 +1300,20 @@ export default function HomePage() {
                           </p>
                         </div>
                         <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform duration-300 ${
-                            isOpen
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform duration-300 ${isOpen
                               ? "bg-[#D95326] text-white rotate-180"
                               : "bg-[#FAF6F0] text-stone-900"
-                          }`}
+                            }`}
                         >
                           <ChevronDown className="h-4 w-4" />
                         </div>
                       </button>
 
                       <div
-                        className={`grid transition-all duration-300 ease-out ${
-                          isOpen
+                        className={`grid transition-all duration-300 ease-out ${isOpen
                             ? "grid-rows-[1fr] opacity-100"
                             : "grid-rows-[0fr] opacity-0"
-                        }`}
+                          }`}
                       >
                         <div className="overflow-hidden">
                           <div className="border-t border-[#E6DEC8] px-4 sm:px-6 py-4 text-xs sm:text-sm leading-relaxed text-stone-600 bg-white">

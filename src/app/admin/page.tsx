@@ -577,7 +577,7 @@ export default function AdminDashboardPage() {
       subtitle:
         newFlowerSubtitle.trim() || "Fresh Farm-Plucked Sacred Puja Blooms",
       botanicalNote:
-        "Plucked fresh at 1:30 AM and delivered in breathable eco-pouches between 6:00 AM – 8:00 AM.",
+        "Plucked fresh at 8:00 PM and delivered in breathable eco-pouches between 6:00 AM – 8:00 AM.",
       imageUrl: newFlowerImage.trim() || "/images/merigold.jpeg",
       basePricePer100g: Number(price100g),
       unitType: "WEIGHT",
@@ -704,11 +704,10 @@ export default function AdminDashboardPage() {
               <button
                 type="button"
                 onClick={handleToggleFestiveMode}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
-                  festiveMode.isFestiveDay
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${festiveMode.isFestiveDay
                     ? "bg-[#D95326] text-white shadow-sm"
                     : "border border-stone-700 bg-stone-900 text-stone-300 hover:bg-stone-800"
-                }`}
+                  }`}
               >
                 <Flame className="h-4 w-4 text-[#F5D0A9]" />
                 <span>
@@ -786,11 +785,10 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => setActiveTab("DISPATCH")}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "DISPATCH"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${activeTab === "DISPATCH"
                   ? "bg-[#D95326] text-white shadow-xs"
                   : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
-              }`}
+                }`}
             >
               <Truck className="h-4 w-4" />
               <span>
@@ -800,11 +798,10 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => setActiveTab("PLAN_MATRIX")}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "PLAN_MATRIX"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${activeTab === "PLAN_MATRIX"
                   ? "bg-[#D95326] text-white shadow-xs"
                   : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
-              }`}
+                }`}
             >
               <IndianRupee className="h-4 w-4" />
               <span>
@@ -815,11 +812,10 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => setActiveTab("FLOWERS")}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "FLOWERS"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${activeTab === "FLOWERS"
                   ? "bg-[#D95326] text-white shadow-xs"
                   : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
-              }`}
+                }`}
             >
               <Flower2 className="h-4 w-4" />
               <span>3. Subscriber Add-On Flowers ({flowers.length})</span>
@@ -827,11 +823,10 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => setActiveTab("FESTIVE_CALENDAR")}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${
-                activeTab === "FESTIVE_CALENDAR"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-bold transition cursor-pointer ${activeTab === "FESTIVE_CALENDAR"
                   ? "bg-[#D95326] text-white shadow-xs"
                   : "bg-white text-stone-700 border border-[#E6DEC8] hover:bg-[#F3ECE1]"
-              }`}
+                }`}
             >
               <Calendar className="h-4 w-4" />
               <span>4. Festive Days Calendar ({festiveDates.length})</span>
@@ -1094,11 +1089,10 @@ export default function AdminDashboardPage() {
                           plans.map((pl, pIdx) => (
                             <th
                               key={`${wt}-${pl.id}`}
-                              className={`py-3 px-2 min-w-[105px] ${
-                                wIdx > 0 && pIdx === 0
+                              className={`py-3 px-2 min-w-[105px] ${wIdx > 0 && pIdx === 0
                                   ? "border-l-2 border-[#D95326]/30"
                                   : ""
-                              }`}
+                                }`}
                             >
                               <span className="block text-[#D95326]">
                                 {wt}G
@@ -1142,11 +1136,10 @@ export default function AdminDashboardPage() {
                               return (
                                 <td
                                   key={`${v.id}-${wt}-${pl.id}`}
-                                  className={`py-2 px-2 ${
-                                    wIdx > 0 && pIdx === 0
+                                  className={`py-2 px-2 ${wIdx > 0 && pIdx === 0
                                       ? "border-l-2 border-[#D95326]/30"
                                       : ""
-                                  }`}
+                                    }`}
                                 >
                                   <input
                                     type="number"
@@ -1159,11 +1152,10 @@ export default function AdminDashboardPage() {
                                         Number(e.target.value)
                                       )
                                     }
-                                    className={`w-20 rounded-lg border border-[#E6DEC8] px-2 py-1.5 font-bold focus:border-[#D95326] focus:outline-none ${
-                                      wIdx % 2 === 1
+                                    className={`w-20 rounded-lg border border-[#E6DEC8] px-2 py-1.5 font-bold focus:border-[#D95326] focus:outline-none ${wIdx % 2 === 1
                                         ? "bg-[#FAF6F0] text-[#D95326]"
                                         : "bg-white text-stone-900"
-                                    }`}
+                                      }`}
                                   />
                                 </td>
                               );
@@ -1730,11 +1722,10 @@ export default function AdminDashboardPage() {
                         key={cell.dateStr}
                         type="button"
                         onClick={() => handleToggleCalendarDate(cell.dateStr)}
-                        className={`relative flex flex-col items-center justify-center h-14 rounded-2xl border text-xs font-bold transition cursor-pointer ${
-                          isMarked
+                        className={`relative flex flex-col items-center justify-center h-14 rounded-2xl border text-xs font-bold transition cursor-pointer ${isMarked
                             ? "border-[#D95326] bg-[#D95326] text-white shadow-xs"
                             : "border-[#E6DEC8] bg-[#FAF6F0] text-stone-800 hover:border-[#D95326]"
-                        }`}
+                          }`}
                       >
                         <span className="text-sm">{cell.day}</span>
                         {isMarked && (

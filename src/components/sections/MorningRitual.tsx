@@ -12,7 +12,7 @@ import {
 
 const SLIDES = [
   {
-    time: "1:30 AM",
+    time: "8:00 PM",
     title: "Dispatch From Farms",
     subtitle: "1-Day Harvest Buffer",
     desc: "Hand-plucked by farmers at the coolest hour before dawn after your 1-day booking buffer. Zero cold storage, 100% natural dew.",
@@ -211,9 +211,8 @@ export function MorningRitual() {
             <div
               className="absolute top-4 left-6 h-1 bg-[#D95326] rounded-full transition-all duration-750 ease-out"
               style={{
-                width: `calc(${
-                  (activeIdx / (SLIDES.length - 1)) * 100
-                }% - 12px)`,
+                width: `calc(${(activeIdx / (SLIDES.length - 1)) * 100
+                  }% - 12px)`,
               }}
             />
 
@@ -229,24 +228,22 @@ export function MorningRitual() {
                     className="group flex flex-col items-center cursor-pointer transition focus:outline-none"
                   >
                     <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                        isCurrent
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-300 ${isCurrent
                           ? "bg-[#D95326] border-[#D95326] text-white scale-110 shadow-sm font-bold text-xs"
                           : isPassed
-                          ? "bg-stone-900 border-stone-900 text-white text-xs font-semibold"
-                          : "bg-white border-[#E6DEC8] text-stone-400 text-xs"
-                      }`}
+                            ? "bg-stone-900 border-stone-900 text-white text-xs font-semibold"
+                            : "bg-white border-[#E6DEC8] text-stone-400 text-xs"
+                        }`}
                     >
                       {i + 1}
                     </div>
                     <span
-                      className={`mt-2 text-[11px] sm:text-xs font-bold transition-colors ${
-                        isCurrent
+                      className={`mt-2 text-[11px] sm:text-xs font-bold transition-colors ${isCurrent
                           ? "text-[#D95326]"
                           : isPassed
-                          ? "text-stone-900"
-                          : "text-stone-400"
-                      }`}
+                            ? "text-stone-900"
+                            : "text-stone-400"
+                        }`}
                     >
                       {s.time}
                     </span>

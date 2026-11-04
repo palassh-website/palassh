@@ -4,7 +4,10 @@ import { logger, startTimer } from "@/lib/logger";
 export function getCurrentIstClock(): {
   todayDateStr: string;
   tomorrowDateStr: string;
+  dayAfterTomorrowDateStr: string;
   currentHourIst: number;
+  currentMinuteIst: number;
+  isBefore1145PmIst: boolean;
   formattedTimeIst: string;
 } {
   const now = new Date();
@@ -24,29 +27,39 @@ export function getCurrentIstClock(): {
   const yyyy = getPart("year");
   const mm = getPart("month");
   const dd = getPart("day");
-  const hh = Number(getPart("hour"));
-  const min = getPart("minute");
+  const rawHh = Number(getPart("hour"));
+  const hh = rawHh === 24 ? 0 : rawHh;
+  const minStr = getPart("minute");
+  const min = Number(minStr);
 
   const todayDateStr = `${yyyy}-${mm}-${dd}`;
 
-  const tomorrowDate = new Date(`${todayDateStr}T00:00:00+05:30`);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tParts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(tomorrowDate);
+  const formatIstDateOffset = (daysToAdd: number): string => {
+    const d = new Date(`${todayDateStr}T00:00:00+05:30`);
+    d.setDate(d.getDate() + daysToAdd);
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === "year")?.value || yyyy;
+    const m = parts.find((p) => p.type === "month")?.value || mm;
+    const day = parts.find((p) => p.type === "day")?.value || dd;
+    return `${y}-${m}-${day}`;
+  };
 
-  const tY = tParts.find((p) => p.type === "year")?.value || yyyy;
-  const tM = tParts.find((p) => p.type === "month")?.value || mm;
-  const tD = tParts.find((p) => p.type === "day")?.value || dd;
+  // Before 11:45 PM IST (i.e. hour < 23, or hour === 23 and minute < 45)
+  const isBefore1145PmIst = hh < 23 || (hh === 23 && min < 45);
 
   return {
     todayDateStr,
-    tomorrowDateStr: `${tY}-${tM}-${tD}`,
-    currentHourIst: hh === 24 ? 0 : hh,
-    formattedTimeIst: `${hh}:${min} IST`,
+    tomorrowDateStr: formatIstDateOffset(1),
+    dayAfterTomorrowDateStr: formatIstDateOffset(2),
+    currentHourIst: hh,
+    currentMinuteIst: min,
+    isBefore1145PmIst,
+    formattedTimeIst: `${String(hh).padStart(2, "0")}:${minStr} IST`,
   };
 }
 
