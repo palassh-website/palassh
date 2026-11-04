@@ -83,7 +83,7 @@ export function getDynamicHeroBanners(
       titleHighlight: "flowers that pray with you.",
       subtitle:
         "Choose from 7 sacred flower varieties in 100 gms or 150 gms across 1 Day, Weekly, and Monthly plans. Hung silently between 6:00 AM – 8:00 AM.",
-      imageUrl: "/images/hero-banner.jpg",
+      imageUrl: "/images/hero-banner.webp",
       primaryBtnText: `Explore Plans From ${oneDayPrice}`,
       primaryBtnHref: "#plans",
       secondaryBtnText: "View 7 Flower Varieties",
@@ -97,7 +97,7 @@ export function getDynamicHeroBanners(
       titleHighlight: "& Temple Shevanti.",
       subtitle:
         "Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti plucked fresh at 8:00 PM.",
-      imageUrl: "/images/chrysanthemum.jpeg",
+      imageUrl: "/images/chrysanthemum.webp",
       primaryBtnText: "Compare 100g & 150g Plans",
       primaryBtnHref: "#plans",
       secondaryBtnText: "Check Society Pincode",
@@ -111,7 +111,7 @@ export function getDynamicHeroBanners(
       titleHighlight: "Unlock Loose Shopping.",
       subtitle:
         "Subscribe to any Weekly or Monthly Plan to unlock exclusive member access to 100g or 150g daily loose flower Add-On packs.",
-      imageUrl: "/images/hibiscus.jpeg",
+      imageUrl: "/images/hibiscus.webp",
       primaryBtnText: `Start Monthly Plan @ ${monthlyPrice}`,
       primaryBtnHref: "/checkout?plan=monthly-pack",
       secondaryBtnText: "Member Flower Store",
@@ -574,6 +574,8 @@ export default function HomePage() {
                   <img
                     src={slide.imageUrl}
                     alt={slide.titleLine1}
+                    width={1600}
+                    height={900}
                     loading={index === 0 ? "eager" : "lazy"}
                     decoding="async"
                     fetchPriority={index === 0 ? "high" : "auto"}
@@ -855,6 +857,8 @@ export default function HomePage() {
                         <img
                           src={flower.imageUrl}
                           alt={flower.name}
+                          width={800}
+                          height={600}
                           loading="lazy"
                           decoding="async"
                           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"

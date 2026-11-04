@@ -7,6 +7,7 @@ export type LogModule =
   | "CATALOG"
   | "CHECKOUT"
   | "ORDERS"
+  | "ACCOUNT"
   | "ADMIN"
   | "ADMIN_LOGIN"
   | "ADMIN_DASHBOARD"
@@ -82,11 +83,11 @@ function writeLog(level: LogLevel, payload: LogPayload, error?: unknown) {
     }`;
 
     if (level === "ERROR") {
-      console.error(`❌ ${tag} -> ${entry.message}`, errorInfo || payload.meta || "");
+      console.error(`âŒ ${tag} -> ${entry.message}`, errorInfo || payload.meta || "");
     } else if (level === "WARN") {
-      console.warn(`⚠️ ${tag} -> ${entry.message}`, payload.meta || "");
+      console.warn(`âš ï¸ ${tag} -> ${entry.message}`, payload.meta || "");
     } else {
-      console.log(`✅ ${tag} -> ${entry.message}`, payload.meta || "");
+      console.log(`âœ… ${tag} -> ${entry.message}`, payload.meta || "");
     }
     return;
   }

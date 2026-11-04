@@ -99,7 +99,7 @@ export default function AdminDashboardPage() {
 
   const [newVarName, setNewVarName] = useState("");
   const [newVarMarathi, setNewVarMarathi] = useState("");
-  const [newVarImage, setNewVarImage] = useState("/images/merigold.jpeg");
+  const [newVarImage, setNewVarImage] = useState("/images/merigold.webp");
   const [isUploadingVarPhoto, setIsUploadingVarPhoto] = useState(false);
   const [varPhotoStatus, setVarPhotoStatus] = useState("");
   const [newVarDay100, setNewVarDay100] = useState(49);
@@ -116,7 +116,7 @@ export default function AdminDashboardPage() {
   const [newFlowerName, setNewFlowerName] = useState("");
   const [newFlowerMarathi, setNewFlowerMarathi] = useState("");
   const [newFlowerSubtitle, setNewFlowerSubtitle] = useState("");
-  const [newFlowerImage, setNewFlowerImage] = useState("/images/merigold.jpeg");
+  const [newFlowerImage, setNewFlowerImage] = useState("/images/merigold.webp");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadStatusNote, setUploadStatusNote] = useState("");
   const [price100g, setPrice100g] = useState(45);
@@ -428,7 +428,7 @@ export default function AdminDashboardPage() {
       name: newVarName.trim(),
       marathiName: newVarMarathi.trim() || "पूजा फुले",
       subtitle: "Fresh Farm-Plucked Morning Puja Blooms",
-      imageUrl: newVarImage.trim() || "/images/merigold.jpeg",
+      imageUrl: newVarImage.trim() || "/images/merigold.webp",
       pricing: pricingByWeight,
     };
 
@@ -479,7 +479,7 @@ export default function AdminDashboardPage() {
       mixedPredefinedBreakdown: "100g Mixed Marigold (मिक्स झेंडू)",
       badge: `${count} Mornings Plan`,
       isPopular: false,
-      imageUrl: "/images/plan-monthly.jpg",
+      imageUrl: "/images/monthly.webp",
       flowersIncluded: ["All Sacred Flower Varieties Available"],
       shortHighlights: [
         `${count} Morning Deliveries (From ₹${perDay}/day)`,
@@ -578,7 +578,7 @@ export default function AdminDashboardPage() {
         newFlowerSubtitle.trim() || "Fresh Farm-Plucked Sacred Puja Blooms",
       botanicalNote:
         "Plucked fresh at 8:00 PM and delivered in breathable eco-pouches between 6:00 AM – 8:00 AM.",
-      imageUrl: newFlowerImage.trim() || "/images/merigold.jpeg",
+      imageUrl: newFlowerImage.trim() || "/images/merigold.webp",
       basePricePer100g: Number(price100g),
       unitType: "WEIGHT",
       availableWeights: [
@@ -1112,7 +1112,7 @@ export default function AdminDashboardPage() {
                           <td className="py-3 px-3 font-bold text-stone-900">
                             <div className="flex items-center gap-2.5">
                               <img
-                                src={v.imageUrl || "/images/merigold.jpeg"}
+                                src={v.imageUrl || "/images/merigold.webp"}
                                 alt={v.name}
                                 className="h-10 w-10 rounded-lg object-cover border border-[#E6DEC8] shrink-0"
                               />

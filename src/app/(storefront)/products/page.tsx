@@ -417,6 +417,8 @@ export default function AllProductsPage() {
                         <img
                           src={flower.imageUrl}
                           alt={flower.name}
+                          width={800}
+                          height={600}
                           loading="lazy"
                           decoding="async"
                           className="h-full w-full object-cover"

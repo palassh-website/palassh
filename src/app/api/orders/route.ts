@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
+import { getCurrentIstClock } from "@/features/orders/orders.service";
 
 export async function GET() {
   const traceId = createTraceId("ORD-GET");
@@ -54,9 +55,43 @@ export async function GET() {
     }
 
     const latestSub = customer.subscriptions[0] || null;
+    const clock = getCurrentIstClock();
+    const todayIst = clock.todayDateStr;
 
-    const formattedSub = latestSub
-      ? {
+    let effectiveTier = customer.activeTier;
+    let formattedSub = null;
+
+    if (latestSub) {
+      const scheduleDays = latestSub.scheduleDays || [];
+      const lastDeliveryDate =
+        scheduleDays[scheduleDays.length - 1]?.deliveryDate ||
+        latestSub.startDate;
+
+      const isPastPlanDeliveries = Boolean(
+        lastDeliveryDate && lastDeliveryDate < todayIst
+      );
+      const isZeroRemaining = latestSub.remainingDeliveries <= 0;
+      const isEnded =
+        latestSub.status !== "ACTIVE" ||
+        isPastPlanDeliveries ||
+        isZeroRemaining;
+
+      if (isEnded) {
+        if (latestSub.status === "ACTIVE") {
+          await db.subscription.update({
+            where: { id: latestSub.id },
+            data: { status: "COMPLETED" },
+          });
+        }
+        if (customer.activeTier !== "NORMAL") {
+          await db.customer.update({
+            where: { id: customer.id },
+            data: { activeTier: "NORMAL" },
+          });
+          effectiveTier = "NORMAL";
+        }
+      } else {
+        formattedSub = {
           id: latestSub.id,
           orderId: latestSub.orderId,
           planId: latestSub.planId,
@@ -76,14 +111,23 @@ export async function GET() {
           phone: customer.phone,
           address: latestSub.addressSnapshot,
           deliveryNote: latestSub.deliveryNote || "",
-          calendarDays: latestSub.scheduleDays.map((d) => ({
+          calendarDays: scheduleDays.map((d) => ({
             dateStr: d.deliveryDate,
             dayNumber: d.dayNumber,
             status: d.status,
             orderNote: d.orderNote || "",
           })),
-        }
-      : null;
+        };
+      }
+    } else {
+      if (customer.activeTier !== "NORMAL") {
+        await db.customer.update({
+          where: { id: customer.id },
+          data: { activeTier: "NORMAL" },
+        });
+        effectiveTier = "NORMAL";
+      }
+    }
 
     const formattedOneTime = customer.oneTimeOrders.map((ord) => ({
       orderId: ord.orderId,
@@ -123,7 +167,7 @@ export async function GET() {
         societyName: customer.societyName,
         pincode: customer.pincode,
         deliveryNote: customer.deliveryNote,
-        activeTier: customer.activeTier,
+        activeTier: effectiveTier,
       },
       activeSubscription: formattedSub,
       oneTimeOrders: formattedOneTime,

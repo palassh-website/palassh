@@ -129,7 +129,7 @@ export function Navbar() {
             >
               <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] p-1 shadow-2xs">
                 <img
-                  src="/images/logo.jpeg"
+                  src="/images/logo.webp"
                   alt="PALASSH"
                   width={48}
                   height={48}
@@ -351,6 +351,8 @@ export function Navbar() {
                           <img
                             src={item.imageUrl}
                             alt={item.flowerName}
+                            width={48}
+                            height={48}
                             loading="lazy"
                             decoding="async"
                             className="h-12 w-12 rounded-xl object-cover border border-stone-200 shrink-0"

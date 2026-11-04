@@ -102,7 +102,7 @@ export const PLAN_PRODUCT_VARIANTS: PlanProductVariant[] = [
     name: "Mixed Marigold",
     marathiName: "मिक्स झेंडू",
     subtitle: "Fresh Orange & Yellow Marigold Assortment",
-    imageUrl: "/images/merigold.jpeg",
+    imageUrl: "/images/merigold.webp",
     pricing: {
       100: {
         day: { price: 45, perDay: 45 },
@@ -162,7 +162,7 @@ export const PLAN_PRODUCT_VARIANTS: PlanProductVariant[] = [
     name: "Pooja Flower",
     marathiName: "पूजा फुले (मिक्स)",
     subtitle: "Complete Daily Mandir Assortment with Sacred Blooms",
-    imageUrl: "/images/plan-daily.jpg",
+    imageUrl: "/images/plan-daily.webp",
     pricing: {
       100: {
         day: { price: 49, perDay: 49 },
@@ -385,7 +385,7 @@ export const INITIAL_PLANS: SubscriptionPlan[] = [
     mixedPredefinedBreakdown: "100g Mixed Marigold (मिक्स झेंडू)",
     badge: "1 Day Trial • 100g / 150g",
     isPopular: false,
-    imageUrl: "/images/plan-daily.jpg",
+    imageUrl: "/images/plan-daily.webp",
     flowersIncluded: [
       "Mixed / Orange / Yellow Marigold (₹45 / ₹55)",
       "Pooja Flower Assortment (₹49 / ₹65)",
@@ -417,7 +417,7 @@ export const INITIAL_PLANS: SubscriptionPlan[] = [
     mixedPredefinedBreakdown: "100g Mixed Marigold (मिक्स झेंडू)",
     badge: "7 Mornings • Unlocks Add-Ons",
     isPopular: false,
-    imageUrl: "/images/plan-weekly.jpg",
+    imageUrl: "/images/plan-weekly.webp",
     flowersIncluded: [
       "Marigold Varieties: 100g @ ₹299 | 150g @ ₹369",
       "Pooja Flower: 100g @ ₹329 | 150g @ ₹439",
@@ -866,6 +866,20 @@ export function getCurrentCustomerTier(): CustomerTier {
     if (savedSub) {
       const parsed = JSON.parse(savedSub);
       if (parsed && parsed.orderId && parsed.status === "ACTIVE") {
+        if (Number(parsed.remainingDeliveries) <= 0) {
+          return "NORMAL";
+        }
+        if (
+          Array.isArray(parsed.calendarDays) &&
+          parsed.calendarDays.length > 0
+        ) {
+          const today = new Date().toISOString().split("T")[0];
+          const lastDate =
+            parsed.calendarDays[parsed.calendarDays.length - 1]?.dateStr;
+          if (lastDate && lastDate < today) {
+            return "NORMAL";
+          }
+        }
         if (
           parsed.planId === "plan-monthly" ||
           parsed.billingCycle === "month" ||

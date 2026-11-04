@@ -102,8 +102,10 @@ export function Footer() {
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 overflow-hidden rounded-xl bg-white p-1 shadow-sm">
                   <img
-                    src="/images/logo.jpeg"
+                    src="/images/logo.webp"
                     alt="PALASSH"
+                    width={44}
+                    height={44}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-contain"

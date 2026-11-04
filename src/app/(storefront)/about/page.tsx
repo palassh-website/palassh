@@ -112,6 +112,8 @@ Flowers that pray with you.
                   <img
                     src="/images/founder.webp"
                     alt="PALASSH Sacred Morning Blooms"
+                    width={600}
+                    height={450}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover"
@@ -228,7 +230,7 @@ Flowers that pray with you.
                 {
                   name: "Mixed, Orange & Yellow Marigold",
                   marathi: "झेंडू",
-                  image: "/images/merigold.jpeg",
+                  image: "/images/merigold.webp",
                   deity: "100g from ₹45 | 150g from ₹55",
                   desc: "Rich saffron and golden blooms plucked fresh from Nashik fields for auspicious daily worship and torans.",
                 },
@@ -242,7 +244,7 @@ Flowers that pray with you.
                 {
                   name: "Mixed, White & Yellow Shevanti",
                   marathi: "शेवंती",
-                  image: "/images/chrysanthemum.jpeg",
+                  image: "/images/chrysanthemum.webp",
                   deity: "100g from ₹69 | 150g from ₹89",
                   desc: "Long-lasting ivory and golden chrysanthemum petals that stay radiant on your altar from morning aarti till night.",
                 },
@@ -256,6 +258,8 @@ Flowers that pray with you.
                       <img
                         src={flw.image}
                         alt={flw.name}
+                        width={640}
+                        height={400}
                         loading="lazy"
                         decoding="async"
                         className="h-full w-full object-cover"

@@ -67,7 +67,7 @@ export const metadata: Metadata = {
       "100g & 150g breathable pouches of fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) plucked at 8:00 PM and hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
     images: [
       {
-        url: "/images/hero-banner.jpg",
+        url: "/images/hero-banner.webp",
         width: 1200,
         height: 630,
         alt: "PALASSH Sacred Morning Puja Flowers Thane",
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
     title: "PALASSH | Morning 6–8 AM Puja Flower Subscription in Thane",
     description:
       "100% Zero Cold Storage farm-fresh puja flowers delivered daily across Thane pincodes 400601 to 400608. 1 Day, Weekly & Monthly plans from ₹45.",
-    images: ["/images/hero-banner.jpg"],
+    images: ["/images/hero-banner.webp"],
   },
   robots: {
     index: true,
@@ -92,8 +92,8 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/images/logo.jpeg",
-    apple: "/images/logo.jpeg",
+    icon: "/images/logo.webp",
+    apple: "/images/logo.webp",
   },
 };
 
@@ -104,8 +104,8 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
   name: "PALASSH Flowers",
   alternateName: "PALASSH — flowers that pray with you",
   url: "https://palassh.com",
-  logo: "https://palassh.com/images/logo.jpeg",
-  image: "https://palassh.com/images/hero-banner.jpg",
+  logo: "https://palassh.com/images/logo.webp",
+  image: "https://palassh.com/images/hero-banner.webp",
   description:
     "Farm-to-Mandir morning puja flower subscription service in Thane delivering 100g and 150g pouches of Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti between 6:00 AM and 8:00 AM.",
   telephone: "+919167034671",
@@ -168,6 +168,14 @@ export default function RootLayout({
       className={`${fraunces.variable} ${interTight.variable} font-sans scroll-smooth`}
     >
       <head>
+        <link
+          rel="preload"
+          as="image"
+          href="/images/hero-banner.webp"
+          type="image/webp"
+          // @ts-expect-error fetchpriority is standard HTML
+          fetchpriority="high"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

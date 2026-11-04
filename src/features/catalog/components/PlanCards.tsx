@@ -256,6 +256,8 @@ export function PlanCards({
                         : resolved.variant.imageUrl || plan.imageUrl
                     }
                     alt={plan.title}
+                    width={800}
+                    height={450}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
