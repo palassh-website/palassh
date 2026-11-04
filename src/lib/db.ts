@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { getEnvConfig } from "./env";
 import { logger, startTimer } from "./logger";
 
 const globalForPrisma = globalThis as unknown as {
@@ -6,7 +7,18 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  const { DATABASE_URL } = getEnvConfig();
+
   const client = new PrismaClient({
+    ...(DATABASE_URL
+      ? {
+          datasources: {
+            db: {
+              url: DATABASE_URL,
+            },
+          },
+        }
+      : {}),
     log: [
       { emit: "event", level: "error" },
       { emit: "event", level: "warn" },
@@ -39,21 +51,18 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
 }
 
-/**
- * Helper to test if Hostinger MySQL is reachable and log exact latency in ms.
- * Very useful when debugging Remote MySQL IP whitelisting issues.
- */
 export async function verifyDatabaseConnection(traceId?: string): Promise<{
   connected: boolean;
   latencyMs: number;
   errorReason?: string;
 }> {
   const getElapsed = startTimer();
+
   if (!process.env.DATABASE_URL) {
     return {
       connected: false,
       latencyMs: getElapsed(),
-      errorReason: "DATABASE_URL is not configured in .env",
+      errorReason: "DATABASE_URL is not configured in Vercel Environment Variables",
     };
   }
 
