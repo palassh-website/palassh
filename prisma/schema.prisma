@@ -23,7 +23,6 @@ model Customer {
 
   subscriptions Subscription[]
   oneTimeOrders OneTimeOrder[]
-  payments      Payment[]
 }
 
 model OtpVerification {
@@ -37,52 +36,6 @@ model OtpVerification {
   createdAt DateTime @default(now())
 
   @@index([email, code])
-}
-
-model Payment {
-  id                      String    @id @default(cuid())
-  razorpayOrderId         String    @unique
-  razorpayPaymentId       String?   @unique
-  razorpaySignature       String?   @db.VarChar(255)
-  customerId              String
-  customer                Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  orderType               String    // SUBSCRIPTION | ONE_TIME
-  status                  String    @default("CREATED") // CREATED | PAID | FAILED
-  amountInRupees          Int
-  amountInPaise           Int
-  currency                String    @default("INR")
-
-  // Server-locked order snapshot (Client cannot tamper with these during verify)
-  pincode                 String
-  deliveryDate            String
-  fullNameSnapshot        String    @default("")
-  flatWingSnapshot        String    @default("")
-  societyNameSnapshot     String    @default("")
-  addressSnapshot         String    @db.Text
-  deliveryNoteSnapshot    String    @db.Text
-
-  // Subscription snapshot fields
-  planId                  String?
-  planSlug                String?
-  planTitle               String?
-  billingCycle            String?
-  deliveriesCount         Int?
-  weightGrams             Int?
-  productVariantId        String?
-  defaultFlowersSnapshot  String?   @db.Text
-
-  // One-Time Add-On snapshot fields
-  cartItemsJson           String?   @db.Text
-  flowerSummarySnapshot   String?   @db.Text
-  totalGramsSnapshot      Int?
-
-  // Resulting created order reference for idempotent replay responses
-  createdPublicOrderId    String?   @unique
-  paidAt                  DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  @@index([customerId, status])
 }
 
 model Subscription {
@@ -104,8 +57,8 @@ model Subscription {
   defaultFlowers      String                  @db.Text
   addressSnapshot     String                  @db.Text
   deliveryNote        String                  @db.Text
-  razorpayOrderId     String?                 @unique
-  razorpayPaymentId   String?                 @unique
+  razorpayOrderId     String?
+  razorpayPaymentId   String?
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
 
@@ -143,8 +96,8 @@ model OneTimeOrder {
   addressSnapshot   String   @db.Text
   deliveryNote      String   @db.Text
   status            String   @default("CONFIRMED")
-  razorpayOrderId   String?  @unique
-  razorpayPaymentId String?  @unique
+  razorpayOrderId   String?
+  razorpayPaymentId String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

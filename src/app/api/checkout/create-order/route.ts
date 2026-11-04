@@ -5,6 +5,46 @@ import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { validateAndCalculateOrderServerSide } from "@/features/checkout/checkout.service";
 
+export interface LockedPaymentSnapshot {
+  razorpayOrderId: string;
+  customerId: string;
+  orderType: "SUBSCRIPTION" | "ONE_TIME";
+  status: "CREATED" | "PAID";
+  amountInRupees: number;
+  amountInPaise: number;
+  currency: "INR";
+  pincode: string;
+  deliveryDate: string;
+  fullNameSnapshot: string;
+  flatWingSnapshot: string;
+  societyNameSnapshot: string;
+  addressSnapshot: string;
+  deliveryNoteSnapshot: string;
+  planId?: string;
+  planSlug?: string;
+  planTitle?: string;
+  billingCycle?: string;
+  deliveriesCount?: number;
+  weightGrams?: number;
+  productVariantId?: string;
+  defaultFlowersSnapshot?: string;
+  cartItemsJson?: string;
+  flowerSummarySnapshot?: string;
+  totalGramsSnapshot?: number;
+  razorpayPaymentId?: string;
+  createdPublicOrderId?: string;
+  createdAt: string;
+  paidAt?: string;
+}
+
+export function getPaymentOrderConfigKey(razorpayOrderId: string): string {
+  return `PAY_INTENT_${razorpayOrderId}`;
+}
+
+export function getPaymentUsedConfigKey(razorpayPaymentId: string): string {
+  return `PAY_USED_${razorpayPaymentId}`;
+}
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("CHK-CREATE");
   const getElapsed = startTimer();
@@ -34,19 +74,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 2. Require Verified Customer Session Cookie
+    const session = await getActiveCustomerSession();
+    if (!session?.customerId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Please verify your Email & Phone via the 6-digit OTP code before proceeding to payment.",
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const orderType: "SUBSCRIPTION" | "ONE_TIME" =
       body.orderType === "ONE_TIME" ? "ONE_TIME" : "SUBSCRIPTION";
 
-    // Prefer cryptographic session customerId, fallback to OTP-verified email/phone match
-    const session = await getActiveCustomerSession();
-    const email = String(body.email || session?.email || "")
-      .trim()
-      .toLowerCase();
-    const phone = String(body.phone || session?.phone || "")
-      .replace(/\D/g, "")
-      .slice(-10);
-    const fullName = String(body.fullName || session?.fullName || "").trim();
+    const fullName = String(body.fullName || session.fullName || "").trim();
     const flatWing = String(body.flatWing || "").trim();
     const societyName = String(body.societyName || "").trim();
     const pincode = String(body.pincode || "").trim();
@@ -57,22 +102,8 @@ export async function POST(req: NextRequest) {
       String(body.deliveryNote || "").trim() ||
       "Hang pouch on main door handle (Do not ring bell)";
 
-    if (!email.includes("@") || phone.length !== 10) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Valid verified email and 10-digit WhatsApp number are required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // 2. Load Verified Customer & Active Subscription
-    const customer = await db.customer.findFirst({
-      where: session?.customerId
-        ? { id: session.customerId }
-        : { AND: [{ email }, { phone }] },
+    const customer = await db.customer.findUnique({
+      where: { id: session.customerId },
       include: {
         subscriptions: {
           where: { status: "ACTIVE" },
@@ -146,7 +177,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Create Razorpay Order via Server-to-Server API (with 8s timeout)
+    // 4. Create Razorpay Order via Server-to-Server API
     const authHeader = Buffer.from(
       `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
     ).toString("base64");
@@ -197,49 +228,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveFullName = fullName || customer.fullName || "PALASSH Devotee";
+    const razorpayOrderId = String(rzpData.id);
+    const effectiveFullName =
+      fullName || customer.fullName || "PALASSH Devotee";
     const effectiveFlatWing = flatWing || customer.flatWing || "";
     const effectiveSociety = societyName || customer.societyName || "";
     const addressSnapshot = `${effectiveFlatWing}, ${effectiveSociety} - ${pincode}`;
 
-    // 5. Persist Immutable Pending Payment Snapshot in MySQL
-    await db.payment.create({
-      data: {
-        razorpayOrderId: String(rzpData.id),
-        customerId: customer.id,
-        orderType,
-        status: "CREATED",
-        amountInRupees: calc.amountInRupees,
-        amountInPaise,
-        currency: "INR",
-        pincode,
-        deliveryDate,
-        fullNameSnapshot: effectiveFullName,
-        flatWingSnapshot: effectiveFlatWing,
-        societyNameSnapshot: effectiveSociety,
-        addressSnapshot,
-        deliveryNoteSnapshot: deliveryNote,
-        ...(orderType === "SUBSCRIPTION" && calc.resolvedPlan
-          ? {
-              planId: calc.resolvedPlan.id,
-              planSlug: calc.resolvedPlan.slug,
-              planTitle: calc.resolvedPlan.title,
-              billingCycle: calc.resolvedPlan.billingCycle,
-              deliveriesCount: calc.resolvedPlan.deliveriesCount,
-              weightGrams: calc.totalGrams,
-              productVariantId: String(body.productVariantId || ""),
-              defaultFlowersSnapshot:
-                calc.resolvedFlowerSummary ||
-                calc.resolvedPlan.mixedPredefinedBreakdown,
-            }
-          : {
-              cartItemsJson: JSON.stringify(
-                Array.isArray(body.cartItems) ? body.cartItems.slice(0, 1) : []
-              ),
-              flowerSummarySnapshot:
-                calc.resolvedFlowerSummary || "100g Add-On Flowers",
-              totalGramsSnapshot: calc.totalGrams,
-            }),
+    const snapshot: LockedPaymentSnapshot = {
+      razorpayOrderId,
+      customerId: customer.id,
+      orderType,
+      status: "CREATED",
+      amountInRupees: calc.amountInRupees,
+      amountInPaise,
+      currency: "INR",
+      pincode,
+      deliveryDate,
+      fullNameSnapshot: effectiveFullName,
+      flatWingSnapshot: effectiveFlatWing,
+      societyNameSnapshot: effectiveSociety,
+      addressSnapshot,
+      deliveryNoteSnapshot: deliveryNote,
+      createdAt: new Date().toISOString(),
+      ...(orderType === "SUBSCRIPTION" && calc.resolvedPlan
+        ? {
+            planId: calc.resolvedPlan.id,
+            planSlug: calc.resolvedPlan.slug,
+            planTitle: calc.resolvedPlan.title,
+            billingCycle: calc.resolvedPlan.billingCycle,
+            deliveriesCount: calc.resolvedPlan.deliveriesCount,
+            weightGrams: calc.totalGrams,
+            productVariantId: String(body.productVariantId || ""),
+            defaultFlowersSnapshot:
+              calc.resolvedFlowerSummary ||
+              calc.resolvedPlan.mixedPredefinedBreakdown,
+          }
+        : {
+            cartItemsJson: JSON.stringify(
+              Array.isArray(body.cartItems) ? body.cartItems.slice(0, 1) : []
+            ),
+            flowerSummarySnapshot:
+              calc.resolvedFlowerSummary || "100g Add-On Flowers",
+            totalGramsSnapshot: calc.totalGrams,
+          }),
+    };
+
+    // 5. Persist Immutable Pending Payment Snapshot in MySQL StoreConfig (Primary Key locked)
+    await db.storeConfig.upsert({
+      where: { configKey: getPaymentOrderConfigKey(razorpayOrderId) },
+      update: { jsonPayload: JSON.stringify(snapshot) },
+      create: {
+        configKey: getPaymentOrderConfigKey(razorpayOrderId),
+        jsonPayload: JSON.stringify(snapshot),
       },
     });
 
@@ -248,7 +289,7 @@ export async function POST(req: NextRequest) {
       action: "PAYMENT_INTENT_LOCKED",
       traceId,
       durationMs: getElapsed(),
-      message: `Locked Payment row for Razorpay order ${rzpData.id} (₹${calc.amountInRupees})`,
+      message: `Locked Payment snapshot for Razorpay order ${razorpayOrderId} (₹${calc.amountInRupees})`,
     });
 
     return NextResponse.json({
@@ -256,7 +297,7 @@ export async function POST(req: NextRequest) {
       traceId,
       paymentMode: "RAZORPAY_LIVE",
       razorpayKeyId: env.RAZORPAY_KEY_ID,
-      razorpayOrderId: String(rzpData.id),
+      razorpayOrderId,
       amountInRupees: calc.amountInRupees,
       amountInPaise,
     });
@@ -275,7 +316,8 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         traceId,
-        error: "Payment gateway connection timed out or failed. Please try again.",
+        error:
+          "Payment gateway connection timed out or failed. Please try again.",
       },
       { status: 502 }
     );

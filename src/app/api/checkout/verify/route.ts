@@ -6,6 +6,11 @@ import { getActiveCustomerSession, setCustomerSessionCookie } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { sendOrderConfirmationEmail } from "@/lib/mailer";
 import { buildSubscriptionScheduleRows } from "@/features/checkout/checkout.service";
+import {
+  LockedPaymentSnapshot,
+  getPaymentOrderConfigKey,
+  getPaymentUsedConfigKey,
+} from "../create-order/route";
 
 function verifyRazorpayHmacTimingSafe(params: {
   orderId: string;
@@ -36,7 +41,7 @@ function verifyRazorpayHmacTimingSafe(params: {
 }
 
 async function loadExistingOrderForPaidPayment(razorpayOrderId: string) {
-  const existingSub = await db.subscription.findUnique({
+  const existingSub = await db.subscription.findFirst({
     where: { razorpayOrderId },
     include: {
       customer: true,
@@ -51,7 +56,7 @@ async function loadExistingOrderForPaidPayment(razorpayOrderId: string) {
     };
   }
 
-  const existingOt = await db.oneTimeOrder.findUnique({
+  const existingOt = await db.oneTimeOrder.findFirst({
     where: { razorpayOrderId },
   });
   if (existingOt) {
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
   const getElapsed = startTimer();
 
   try {
+    // 1. Fail Closed if Razorpay Keys are Missing
     const env = getEnvConfig();
     if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Bug 4 Fix: Strictly require authenticated customer session cookie
+    // 2. Require Verified Customer Session Cookie
     const session = await getActiveCustomerSession();
     if (!session?.customerId) {
       return NextResponse.json(
@@ -103,6 +109,7 @@ export async function POST(req: NextRequest) {
       body.razorpaySignature || body.razorpay_signature || ""
     ).trim();
 
+    // 3. Reject Missing or Simulated IDs Immediately
     if (
       !razorpayOrderId ||
       !razorpayPaymentId ||
@@ -121,6 +128,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 4. Timing-Safe HMAC-SHA256 Signature Check
     const isSignatureValid = verifyRazorpayHmacTimingSafe({
       orderId: razorpayOrderId,
       paymentId: razorpayPaymentId,
@@ -138,12 +146,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const paymentRow = await db.payment.findUnique({
-      where: { razorpayOrderId },
-      include: { customer: true },
+    // 5. Load Server-Locked Payment Snapshot from StoreConfig
+    const orderKey = getPaymentOrderConfigKey(razorpayOrderId);
+    const paymentConfigRow = await db.storeConfig.findUnique({
+      where: { configKey: orderKey },
     });
 
-    if (!paymentRow) {
+    if (!paymentConfigRow?.jsonPayload) {
       return NextResponse.json(
         {
           success: false,
@@ -153,8 +162,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strict Session Ownership Binding
-    if (session.customerId !== paymentRow.customerId) {
+    let paymentSnapshot: LockedPaymentSnapshot;
+    try {
+      paymentSnapshot = JSON.parse(
+        paymentConfigRow.jsonPayload
+      ) as LockedPaymentSnapshot;
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Corrupted order session.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 6. Verify Customer Ownership
+    if (session.customerId !== paymentSnapshot.customerId) {
       return NextResponse.json(
         {
           success: false,
@@ -164,10 +188,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (paymentRow.status === "PAID") {
+    const customer = await db.customer.findUnique({
+      where: { id: paymentSnapshot.customerId },
+    });
+
+    if (!customer || !customer.isVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Verified customer record not found.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // 7. Fast Idempotent Return if Already Paid with the Same razorpayPaymentId
+    if (paymentSnapshot.status === "PAID") {
       if (
-        paymentRow.razorpayPaymentId &&
-        paymentRow.razorpayPaymentId !== razorpayPaymentId
+        paymentSnapshot.razorpayPaymentId &&
+        paymentSnapshot.razorpayPaymentId !== razorpayPaymentId
       ) {
         return NextResponse.json(
           {
@@ -191,22 +230,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const paymentIdUsedElsewhere = await db.payment.findUnique({
-      where: { razorpayPaymentId },
+    // Ensure razorpayPaymentId has never been used on ANY other order (Subscription or Add-On)
+    const usedPaymentKey = getPaymentUsedConfigKey(razorpayPaymentId);
+    const usedElsewhere = await db.storeConfig.findUnique({
+      where: { configKey: usedPaymentKey },
     });
-    if (
-      paymentIdUsedElsewhere &&
-      paymentIdUsedElsewhere.id !== paymentRow.id
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This payment ID has already been used for another order.",
-        },
-        { status: 409 }
-      );
+    if (usedElsewhere) {
+      const usedMeta = JSON.parse(usedElsewhere.jsonPayload || "{}") as {
+        razorpayOrderId?: string;
+      };
+      if (usedMeta.razorpayOrderId !== razorpayOrderId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This payment ID has already been used for another order.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
+    // 8. Server-to-Server Confirmation with Razorpay API (Outside DB Transaction)
     const authHeader = Buffer.from(
       `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
     ).toString("base64");
@@ -246,9 +290,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (
-      rzpPayment.order_id !== paymentRow.razorpayOrderId ||
+      rzpPayment.order_id !== paymentSnapshot.razorpayOrderId ||
       rzpPayment.currency !== "INR" ||
-      Number(rzpPayment.amount) !== paymentRow.amountInPaise
+      Number(rzpPayment.amount) !== paymentSnapshot.amountInPaise
     ) {
       return NextResponse.json(
         {
@@ -273,7 +317,7 @@ export async function POST(req: NextRequest) {
               Authorization: `Basic ${authHeader}`,
             },
             body: JSON.stringify({
-              amount: paymentRow.amountInPaise,
+              amount: paymentSnapshot.amountInPaise,
               currency: "INR",
             }),
             cache: "no-store",
@@ -313,28 +357,36 @@ export async function POST(req: NextRequest) {
     }
 
     const finalFullName =
-      paymentRow.fullNameSnapshot || paymentRow.customer.fullName;
+      paymentSnapshot.fullNameSnapshot || customer.fullName;
     const finalFlatWing =
-      paymentRow.flatWingSnapshot || paymentRow.customer.flatWing;
+      paymentSnapshot.flatWingSnapshot || customer.flatWing;
     const finalSociety =
-      paymentRow.societyNameSnapshot || paymentRow.customer.societyName;
-    const finalAddressSnapshot = paymentRow.addressSnapshot;
+      paymentSnapshot.societyNameSnapshot || customer.societyName;
+    const finalAddressSnapshot = paymentSnapshot.addressSnapshot;
     const finalDeliveryNote =
-      paymentRow.deliveryNoteSnapshot ||
+      paymentSnapshot.deliveryNoteSnapshot ||
       "Hang pouch on main door handle (Do not ring bell)";
 
-    // 8A. Fulfill ONE_TIME Add-On Order with Atomic Duplicate-Date Guard (Bug 8.2 Fix)
-    if (paymentRow.orderType === "ONE_TIME") {
+    // 9A. Fulfill ONE_TIME Add-On Order with Atomic Compare-And-Swap Lock
+    if (paymentSnapshot.orderType === "ONE_TIME") {
       const publicOrderId = `PLS-ADDON-${Math.floor(
         100000 + Math.random() * 900000
       )}`;
+
+      const paidSnapshot: LockedPaymentSnapshot = {
+        ...paymentSnapshot,
+        status: "PAID",
+        razorpayPaymentId,
+        createdPublicOrderId: publicOrderId,
+        paidAt: new Date().toISOString(),
+      };
 
       try {
         const txResult = await db.$transaction(async (tx) => {
           const alreadyBookedAddon = await tx.oneTimeOrder.findFirst({
             where: {
-              customerId: paymentRow.customerId,
-              deliveryDate: paymentRow.deliveryDate,
+              customerId: paymentSnapshot.customerId,
+              deliveryDate: paymentSnapshot.deliveryDate,
               status: { not: "CANCELLED" },
             },
           });
@@ -343,14 +395,14 @@ export async function POST(req: NextRequest) {
             throw new Error("DUPLICATE_ADDON_FOR_DATE");
           }
 
-          const claimed = await tx.payment.updateMany({
-            where: { id: paymentRow.id, status: "CREATED" },
+          // Atomic Compare-And-Swap: Only transition if still in CREATED state
+          const claimed = await tx.storeConfig.updateMany({
+            where: {
+              configKey: orderKey,
+              jsonPayload: { contains: '"status":"CREATED"' },
+            },
             data: {
-              status: "PAID",
-              razorpayPaymentId,
-              razorpaySignature,
-              createdPublicOrderId: publicOrderId,
-              paidAt: new Date(),
+              jsonPayload: JSON.stringify(paidSnapshot),
             },
           });
 
@@ -358,13 +410,26 @@ export async function POST(req: NextRequest) {
             return null;
           }
 
+          // Lock razorpayPaymentId globally via Primary Key configKey
+          await tx.storeConfig.create({
+            data: {
+              configKey: usedPaymentKey,
+              jsonPayload: JSON.stringify({
+                razorpayOrderId,
+                razorpayPaymentId,
+                publicOrderId,
+                paidAt: paidSnapshot.paidAt,
+              }),
+            },
+          });
+
           await tx.customer.update({
-            where: { id: paymentRow.customerId },
+            where: { id: paymentSnapshot.customerId },
             data: {
               fullName: finalFullName,
               flatWing: finalFlatWing,
               societyName: finalSociety,
-              pincode: paymentRow.pincode,
+              pincode: paymentSnapshot.pincode,
               deliveryNote: finalDeliveryNote,
             },
           });
@@ -372,13 +437,13 @@ export async function POST(req: NextRequest) {
           return tx.oneTimeOrder.create({
             data: {
               orderId: publicOrderId,
-              customerId: paymentRow.customerId,
+              customerId: paymentSnapshot.customerId,
               flowerSummary:
-                paymentRow.flowerSummarySnapshot || "100g Add-On Flowers",
-              itemsJson: paymentRow.cartItemsJson || "[]",
-              totalGrams: paymentRow.totalGramsSnapshot || 100,
-              amountPaid: paymentRow.amountInRupees,
-              deliveryDate: paymentRow.deliveryDate,
+                paymentSnapshot.flowerSummarySnapshot || "100g Add-On Flowers",
+              itemsJson: paymentSnapshot.cartItemsJson || "[]",
+              totalGrams: paymentSnapshot.totalGramsSnapshot || 100,
+              amountPaid: paymentSnapshot.amountInRupees,
+              deliveryDate: paymentSnapshot.deliveryDate,
               deliverySlot: "6:00 AM – 8:00 AM",
               addressSnapshot: finalAddressSnapshot,
               deliveryNote: finalDeliveryNote,
@@ -402,9 +467,9 @@ export async function POST(req: NextRequest) {
         }
 
         void sendOrderConfirmationEmail({
-          toEmail: paymentRow.customer.email,
+          toEmail: customer.email,
           customerName: finalFullName,
-          phone: paymentRow.customer.phone,
+          phone: customer.phone,
           orderId: txResult.orderId,
           orderType: "ONE_TIME",
           planTitle: `Subscriber Daily Add-On (${txResult.totalGrams}g Pack)`,
@@ -428,7 +493,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               success: false,
-              error: `An Add-On order is already confirmed for ${paymentRow.deliveryDate}.`,
+              error: `An Add-On order is already confirmed for ${paymentSnapshot.deliveryDate}.`,
             },
             { status: 409 }
           );
@@ -437,9 +502,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 8B. Fulfill SUBSCRIPTION Order & Mark Older Active Subscriptions as COMPLETED (Bug 8.3 Fix)
-    const deliveriesCount = paymentRow.deliveriesCount || 30;
-    const billingCycle = paymentRow.billingCycle || "month";
+    // 9B. Fulfill SUBSCRIPTION Order strictly from Stored Snapshot
+    const deliveriesCount = paymentSnapshot.deliveriesCount || 30;
+    const billingCycle = paymentSnapshot.billingCycle || "month";
     const isOneDay = deliveriesCount <= 1 || billingCycle === "day";
     const isWeekly =
       !isOneDay && (deliveriesCount <= 7 || billingCycle === "week");
@@ -458,30 +523,38 @@ export async function POST(req: NextRequest) {
       100000 + Math.random() * 900000
     )}`;
     const lockedDefaultFlowers =
-      paymentRow.defaultFlowersSnapshot ||
+      paymentSnapshot.defaultFlowersSnapshot ||
       "100g Mixed Marigold (मिक्स झेंडू)";
 
     const scheduleRows = buildSubscriptionScheduleRows({
-      startDateStr: paymentRow.deliveryDate,
+      startDateStr: paymentSnapshot.deliveryDate,
       totalDeliveries: deliveriesCount,
       defaultNote: finalDeliveryNote,
     });
 
     const firstDeliveryDate =
-      scheduleRows[0]?.deliveryDate || paymentRow.deliveryDate;
+      scheduleRows[0]?.deliveryDate || paymentSnapshot.deliveryDate;
     const lastDeliveryDate =
       scheduleRows[scheduleRows.length - 1]?.deliveryDate ||
-      paymentRow.deliveryDate;
+      paymentSnapshot.deliveryDate;
+
+    const paidSubSnapshot: LockedPaymentSnapshot = {
+      ...paymentSnapshot,
+      status: "PAID",
+      razorpayPaymentId,
+      createdPublicOrderId: publicSubOrderId,
+      paidAt: new Date().toISOString(),
+    };
 
     const createdSubscription = await db.$transaction(async (tx) => {
-      const claimed = await tx.payment.updateMany({
-        where: { id: paymentRow.id, status: "CREATED" },
+      // Atomic Compare-And-Swap: CREATED -> PAID
+      const claimed = await tx.storeConfig.updateMany({
+        where: {
+          configKey: orderKey,
+          jsonPayload: { contains: '"status":"CREATED"' },
+        },
         data: {
-          status: "PAID",
-          razorpayPaymentId,
-          razorpaySignature,
-          createdPublicOrderId: publicSubOrderId,
-          paidAt: new Date(),
+          jsonPayload: JSON.stringify(paidSubSnapshot),
         },
       });
 
@@ -489,10 +562,23 @@ export async function POST(req: NextRequest) {
         return null;
       }
 
-      // Bug 8.3 Fix: Mark any previous ACTIVE subscriptions for this customer as COMPLETED
+      // Lock razorpayPaymentId globally via Primary Key configKey
+      await tx.storeConfig.create({
+        data: {
+          configKey: usedPaymentKey,
+          jsonPayload: JSON.stringify({
+            razorpayOrderId,
+            razorpayPaymentId,
+            publicOrderId: publicSubOrderId,
+            paidAt: paidSubSnapshot.paidAt,
+          }),
+        },
+      });
+
+      // Mark any older ACTIVE subscriptions for this customer as COMPLETED
       await tx.subscription.updateMany({
         where: {
-          customerId: paymentRow.customerId,
+          customerId: paymentSnapshot.customerId,
           status: "ACTIVE",
         },
         data: {
@@ -501,12 +587,12 @@ export async function POST(req: NextRequest) {
       });
 
       await tx.customer.update({
-        where: { id: paymentRow.customerId },
+        where: { id: paymentSnapshot.customerId },
         data: {
           fullName: finalFullName,
           flatWing: finalFlatWing,
           societyName: finalSociety,
-          pincode: paymentRow.pincode,
+          pincode: paymentSnapshot.pincode,
           deliveryNote: finalDeliveryNote,
           activeTier: newActiveTier,
         },
@@ -515,11 +601,11 @@ export async function POST(req: NextRequest) {
       return tx.subscription.create({
         data: {
           orderId: publicSubOrderId,
-          customerId: paymentRow.customerId,
-          planId: paymentRow.planId || "plan-monthly",
-          planTitle: paymentRow.planTitle || "Monthly Pack",
+          customerId: paymentSnapshot.customerId,
+          planId: paymentSnapshot.planId || "plan-monthly",
+          planTitle: paymentSnapshot.planTitle || "Monthly Pack",
           billingCycle,
-          pricePaid: paymentRow.amountInRupees,
+          pricePaid: paymentSnapshot.amountInRupees,
           totalDeliveries: deliveriesCount,
           remainingDeliveries: deliveriesCount,
           maxPausesAllowed,
@@ -555,17 +641,17 @@ export async function POST(req: NextRequest) {
     }
 
     await setCustomerSessionCookie({
-      customerId: paymentRow.customerId,
-      email: paymentRow.customer.email,
-      phone: paymentRow.customer.phone,
+      customerId: paymentSnapshot.customerId,
+      email: customer.email,
+      phone: customer.phone,
       fullName: finalFullName,
       activeTier: newActiveTier,
     });
 
     void sendOrderConfirmationEmail({
-      toEmail: paymentRow.customer.email,
+      toEmail: customer.email,
       customerName: finalFullName,
-      phone: paymentRow.customer.phone,
+      phone: customer.phone,
       orderId: createdSubscription.orderId,
       orderType: "SUBSCRIPTION",
       planTitle: createdSubscription.planTitle,
