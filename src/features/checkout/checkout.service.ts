@@ -17,6 +17,16 @@ export interface CheckoutCartItemInput {
   grams: number;
 }
 
+/**
+ * Bug 9 Fix: Strictly validates real calendar YYYY-MM-DD strings (rejects "2026-99-99", "9999-99-99", etc.)
+ */
+export function isValidIsoDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.toISOString().slice(0, 10) === dateStr;
+}
+
 interface ServerConfigCache {
   expiresAt: number;
   flowers: FlowerProduct[];
@@ -148,19 +158,20 @@ export function buildSubscriptionScheduleRows(params: {
   }[] = [];
 
   const { earliestDeliveryIst } = getServerEarliestDeliveryDateIst();
+  const isInputValid = isValidIsoDateString(params.startDateStr);
   const effectiveStartStr =
-    params.startDateStr >= earliestDeliveryIst
+    isInputValid && params.startDateStr >= earliestDeliveryIst
       ? params.startDateStr
       : earliestDeliveryIst;
 
-  const baseDate = new Date(`${effectiveStartStr}T00:00:00`);
+  const baseDate = new Date(`${effectiveStartStr}T00:00:00Z`);
 
   for (let i = 0; i < params.totalDeliveries; i++) {
     const d = new Date(baseDate);
-    d.setDate(baseDate.getDate() + i);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
+    d.setUTCDate(baseDate.getUTCDate() + i);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
 
     rows.push({
       dayNumber: i + 1,
@@ -173,16 +184,6 @@ export function buildSubscriptionScheduleRows(params: {
   return rows;
 }
 
-/**
- * Authoritative Server-Side Validator:
- * 1. SUBSCRIPTION: Validates 1-Day Farm Buffer & resolves exact price from matrix.
- * 2. ONE_TIME (Subscriber Loose Flower Add-On):
- *    - Customer must have an ACTIVE Weekly or Monthly subscription in MySQL.
- *    - Only 1 single pack of 100g OR 150g is allowed.
- *    - Must respect 1-Day Farm Buffer (deliveryDate >= Today + 2 Days).
- *    - CANNOT be booked on the last 2 scheduled delivery days of the user's plan!
- *    - Customer cannot book more than 1 Add-On for the same deliveryDate.
- */
 export async function validateAndCalculateOrderServerSide(input: {
   orderType: "SUBSCRIPTION" | "ONE_TIME";
   pincode: string;
@@ -214,10 +215,19 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 2. Enforce Strict 1-Day Farm Harvest Buffer (Today + 2 Days minimum) for both Plans & Add-Ons
+  // 2. Bug 9 Fix: Validate real calendar YYYY-MM-DD before comparing
+  if (!isValidIsoDateString(input.deliveryDate)) {
+    return {
+      valid: false,
+      error: "Please select a valid calendar delivery date (YYYY-MM-DD).",
+      amountInRupees: 0,
+      totalGrams: 0,
+    };
+  }
+
   const { todayIst, bufferDayIst, earliestDeliveryIst } =
     getServerEarliestDeliveryDateIst();
-  if (!input.deliveryDate || input.deliveryDate < earliestDeliveryIst) {
+  if (input.deliveryDate < earliestDeliveryIst) {
     return {
       valid: false,
       error: `1-Day Farm Buffer Required: For bookings placed today (${todayIst}), ${bufferDayIst} is reserved for fresh farm harvest sorting. Earliest morning delivery is ${earliestDeliveryIst} (6:00 AM – 8:00 AM).`,
@@ -290,44 +300,42 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // 4B. Enforce "Not in Last 2 Days of Plan" Rule
-  if (
-    Array.isArray(input.activeSubScheduledDates) &&
-    input.activeSubScheduledDates.length > 0
-  ) {
-    const windowCheck = getSubscriberAddonWindow({
-      scheduledDatesSorted: input.activeSubScheduledDates,
-      earliestBufferDate: earliestDeliveryIst,
-    });
+  // 4B. Bug 8 Fix: Always evaluate getSubscriberAddonWindow even when activeSubScheduledDates is empty []
+  const scheduledDates = Array.isArray(input.activeSubScheduledDates)
+    ? input.activeSubScheduledDates
+    : [];
+  const windowCheck = getSubscriberAddonWindow({
+    scheduledDatesSorted: scheduledDates,
+    earliestBufferDate: earliestDeliveryIst,
+  });
 
-    if (!windowCheck.canBookAnyAddon) {
-      return {
-        valid: false,
-        error:
-          windowCheck.blockReason ||
-          "Add-Ons cannot be booked during the final 2 delivery days of your subscription plan.",
-        amountInRupees: 0,
-        totalGrams: 0,
-      };
-    }
+  if (!windowCheck.canBookAnyAddon) {
+    return {
+      valid: false,
+      error:
+        windowCheck.blockReason ||
+        "Add-Ons cannot be booked during the final 2 delivery days of your subscription plan.",
+      amountInRupees: 0,
+      totalGrams: 0,
+    };
+  }
 
-    if (windowCheck.lockedLastTwoDates.includes(input.deliveryDate)) {
-      return {
-        valid: false,
-        error: `Last 2 Days Lockout: ${input.deliveryDate} is one of the final 2 delivery days of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
-        amountInRupees: 0,
-        totalGrams: 0,
-      };
-    }
+  if (windowCheck.lockedLastTwoDates.includes(input.deliveryDate)) {
+    return {
+      valid: false,
+      error: `Last 2 Days Lockout: ${input.deliveryDate} is one of the final 2 delivery days of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
+      amountInRupees: 0,
+      totalGrams: 0,
+    };
+  }
 
-    if (!windowCheck.eligibleDates.includes(input.deliveryDate)) {
-      return {
-        valid: false,
-        error: `Invalid Add-On Date: Please select an active scheduled delivery date from your plan between ${windowCheck.eligibleDates[0]} and ${windowCheck.maxAllowedAddonDate}.`,
-        amountInRupees: 0,
-        totalGrams: 0,
-      };
-    }
+  if (!windowCheck.eligibleDates.includes(input.deliveryDate)) {
+    return {
+      valid: false,
+      error: `Invalid Add-On Date: Please select an active scheduled delivery date from your plan between ${windowCheck.eligibleDates[0]} and ${windowCheck.maxAllowedAddonDate}.`,
+      amountInRupees: 0,
+      totalGrams: 0,
+    };
   }
 
   // 4C. Enforce Strictly 1 Single Pack of 100g OR 150g per Day
@@ -384,7 +392,6 @@ export async function validateAndCalculateOrderServerSide(input: {
     }
   }
 
-  // Resolve price from either flowers catalog or planVariants
   const flower = config.flowers.find((f) => f.id === singleItem.flowerId);
   if (flower && flower.inStock) {
     const weightPack =
@@ -401,7 +408,6 @@ export async function validateAndCalculateOrderServerSide(input: {
     };
   }
 
-  // Fallback to PLAN_PRODUCT_VARIANTS 1-day rate for 100g/150g
   const matchedVar =
     config.planVariants.find((v) => v.id === singleItem.flowerId) ||
     config.planVariants[0];

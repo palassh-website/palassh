@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyAdminApiAuth } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import {
@@ -42,6 +43,7 @@ function safeJsonParse<T>(raw: string | undefined | null, fallback: T): T {
 }
 
 export async function GET() {
+
   const traceId = createTraceId("CFG-GET");
   const getElapsed = startTimer();
 
@@ -120,6 +122,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await verifyAdminApiAuth();
+  if (authError) return authError;
   const traceId = createTraceId("CFG-SAVE");
   const getElapsed = startTimer();
 

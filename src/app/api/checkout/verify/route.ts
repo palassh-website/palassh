@@ -2,220 +2,452 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/lib/db";
 import { getEnvConfig } from "@/lib/env";
+import { getActiveCustomerSession, setCustomerSessionCookie } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
-import { setCustomerSessionCookie } from "@/lib/auth";
 import { sendOrderConfirmationEmail } from "@/lib/mailer";
-import {
-  buildSubscriptionScheduleRows,
-  validateAndCalculateOrderServerSide,
-} from "@/features/checkout/checkout.service";
+import { buildSubscriptionScheduleRows } from "@/features/checkout/checkout.service";
+
+function verifyRazorpayHmacTimingSafe(params: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  secret: string;
+}): boolean {
+  if (
+    !params.orderId ||
+    !params.paymentId ||
+    !params.signature ||
+    !params.secret
+  ) {
+    return false;
+  }
+  const expectedHex = crypto
+    .createHmac("sha256", params.secret)
+    .update(`${params.orderId}|${params.paymentId}`)
+    .digest("hex");
+
+  const expectedBuf = Buffer.from(expectedHex, "utf8");
+  const receivedBuf = Buffer.from(params.signature, "utf8");
+
+  if (expectedBuf.length !== receivedBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+async function loadExistingOrderForPaidPayment(razorpayOrderId: string) {
+  const existingSub = await db.subscription.findUnique({
+    where: { razorpayOrderId },
+    include: {
+      customer: true,
+      scheduleDays: { orderBy: { dayNumber: "asc" } },
+    },
+  });
+  if (existingSub) {
+    return {
+      orderType: "SUBSCRIPTION" as const,
+      subscription: existingSub,
+      activeTier: existingSub.customer.activeTier,
+    };
+  }
+
+  const existingOt = await db.oneTimeOrder.findUnique({
+    where: { razorpayOrderId },
+  });
+  if (existingOt) {
+    return {
+      orderType: "ONE_TIME" as const,
+      oneTimeOrder: existingOt,
+    };
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("CHK-VERIFY");
   const getElapsed = startTimer();
 
   try {
-    const body = await req.json();
-    const orderType: "SUBSCRIPTION" | "ONE_TIME" =
-      body.orderType === "ONE_TIME" ? "ONE_TIME" : "SUBSCRIPTION";
-
-    const email = String(body.email || "")
-      .trim()
-      .toLowerCase();
-    const phone = String(body.phone || "")
-      .replace(/\D/g, "")
-      .slice(-10);
-    const fullName = String(body.fullName || "").trim();
-    const flatWing = String(body.flatWing || "").trim();
-    const societyName = String(body.societyName || "").trim();
-    const pincode = String(body.pincode || "").trim();
-    const startDate = String(body.startDate || "").trim();
-    const deliveryNote =
-      String(body.deliveryNote || "").trim() ||
-      "Hang pouch on main door handle (Do not ring bell)";
-
-    const razorpayOrderId = String(body.razorpayOrderId || "");
-    const razorpayPaymentId = String(
-      body.razorpayPaymentId || `pay_sim_${Date.now()}`
-    );
-    const razorpaySignature = String(body.razorpaySignature || "");
-
     const env = getEnvConfig();
-    if (
-      env.RAZORPAY_KEY_SECRET &&
-      !razorpayOrderId.startsWith("order_sim_")
-    ) {
-      const expectedSignature = crypto
-        .createHmac("sha256", env.RAZORPAY_KEY_SECRET)
-        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-        .digest("hex");
-
-      if (expectedSignature !== razorpaySignature) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Payment signature verification failed. Please contact support.",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    const customer = await db.customer.findFirst({
-      where: {
-        OR: [{ email }, { phone }],
-      },
-      include: {
-        subscriptions: {
-          where: { status: "ACTIVE" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: {
-            scheduleDays: {
-              where: { status: "SCHEDULED" },
-              orderBy: { deliveryDate: "asc" },
-            },
-          },
-        },
-      },
-    });
-
-    if (!customer || !customer.isVerified) {
+    if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
         {
           success: false,
-          error: "Customer email is not verified. Please complete OTP verification first.",
+          error: "Payment verification is not configured on the server.",
         },
-        { status: 403 }
+        { status: 500 }
       );
     }
 
-    const activeDbSub = customer.subscriptions[0] || null;
-    const authoritativeTier: "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY" =
-      activeDbSub
-        ? activeDbSub.totalDeliveries >= 15 ||
-          activeDbSub.billingCycle === "month"
-          ? "MONTHLY"
-          : activeDbSub.totalDeliveries >= 7 ||
-            activeDbSub.billingCycle === "week"
-          ? "WEEKLY"
-          : "ONE_DAY"
-        : "NORMAL";
-
-    if (
-      orderType === "ONE_TIME" &&
-      authoritativeTier !== "WEEKLY" &&
-      authoritativeTier !== "MONTHLY"
-    ) {
+    // Bug 4 Fix: Strictly require authenticated customer session cookie
+    const session = await getActiveCustomerSession();
+    if (!session?.customerId) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Security Block: Only active Weekly and Monthly Plan subscribers can book 100g/150g loose flower Add-Ons.",
+            "Session expired or unauthorized. Please verify your email via OTP first.",
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const razorpayOrderId = String(
+      body.razorpayOrderId || body.razorpay_order_id || ""
+    ).trim();
+    const razorpayPaymentId = String(
+      body.razorpayPaymentId || body.razorpay_payment_id || ""
+    ).trim();
+    const razorpaySignature = String(
+      body.razorpaySignature || body.razorpay_signature || ""
+    ).trim();
+
+    if (
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature ||
+      razorpayOrderId.startsWith("order_sim_") ||
+      razorpayPaymentId.startsWith("pay_sim_") ||
+      !razorpayOrderId.startsWith("order_") ||
+      !razorpayPaymentId.startsWith("pay_")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid or missing Razorpay payment credentials.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const isSignatureValid = verifyRazorpayHmacTimingSafe({
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+      secret: env.RAZORPAY_KEY_SECRET,
+    });
+
+    if (!isSignatureValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Payment signature verification failed.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const paymentRow = await db.payment.findUnique({
+      where: { razorpayOrderId },
+      include: { customer: true },
+    });
+
+    if (!paymentRow) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Order session not found. Please initiate checkout again.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Strict Session Ownership Binding
+    if (session.customerId !== paymentRow.customerId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Customer mismatch for this payment order.",
         },
         { status: 403 }
       );
     }
 
-    const activeSubScheduledDates = activeDbSub
-      ? activeDbSub.scheduleDays.map((d) => d.deliveryDate)
-      : [];
+    if (paymentRow.status === "PAID") {
+      if (
+        paymentRow.razorpayPaymentId &&
+        paymentRow.razorpayPaymentId !== razorpayPaymentId
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This order was already fulfilled with a different payment.",
+          },
+          { status: 409 }
+        );
+      }
 
-    const calc = await validateAndCalculateOrderServerSide({
-      orderType,
-      pincode,
-      deliveryDate: startDate,
-      customerId: customer.id,
-      customerTier: authoritativeTier,
-      activeSubScheduledDates,
-      planIdOrSlug: body.planId || body.planSlug,
-      weightGrams: Number(body.weightGrams) || 100,
-      productVariantId: body.productVariantId,
-      defaultFlowers: body.defaultFlowers,
-      cartItems: body.cartItems,
+      const existingResult = await loadExistingOrderForPaidPayment(
+        razorpayOrderId
+      );
+      if (existingResult) {
+        return NextResponse.json({
+          success: true,
+          traceId,
+          idempotentReplay: true,
+          ...existingResult,
+        });
+      }
+    }
+
+    const paymentIdUsedElsewhere = await db.payment.findUnique({
+      where: { razorpayPaymentId },
     });
-
-    if (!calc.valid) {
+    if (
+      paymentIdUsedElsewhere &&
+      paymentIdUsedElsewhere.id !== paymentRow.id
+    ) {
       return NextResponse.json(
-        { success: false, error: calc.error },
+        {
+          success: false,
+          error: "This payment ID has already been used for another order.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const authHeader = Buffer.from(
+      `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
+    ).toString("base64");
+
+    let rzpPayment: Record<string, unknown>;
+    try {
+      const fetchRes = await fetch(
+        `https://api.razorpay.com/v1/payments/${encodeURIComponent(
+          razorpayPaymentId
+        )}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Basic ${authHeader}` },
+          cache: "no-store",
+          signal: AbortSignal.timeout(6000),
+        }
+      );
+
+      if (!fetchRes.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Could not verify payment status with Razorpay server.",
+          },
+          { status: 502 }
+        );
+      }
+      rzpPayment = await fetchRes.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Razorpay verification request timed out. Please retry.",
+        },
+        { status: 502 }
+      );
+    }
+
+    if (
+      rzpPayment.order_id !== paymentRow.razorpayOrderId ||
+      rzpPayment.currency !== "INR" ||
+      Number(rzpPayment.amount) !== paymentRow.amountInPaise
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Paid amount or order ID does not match the server order.",
+        },
         { status: 400 }
       );
     }
 
-    const addressSnapshot = `${flatWing}, ${societyName} - ${pincode}`;
+    let paymentStatus = String(rzpPayment.status || "");
+    if (paymentStatus === "authorized") {
+      try {
+        const capRes = await fetch(
+          `https://api.razorpay.com/v1/payments/${encodeURIComponent(
+            razorpayPaymentId
+          )}/capture`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Basic ${authHeader}`,
+            },
+            body: JSON.stringify({
+              amount: paymentRow.amountInPaise,
+              currency: "INR",
+            }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(6000),
+          }
+        );
+        if (!capRes.ok) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Failed to capture authorized payment with Razorpay.",
+            },
+            { status: 502 }
+          );
+        }
+        const capData = await capRes.json();
+        paymentStatus = String(capData.status || "");
+      } catch {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Timed out while capturing payment with Razorpay.",
+          },
+          { status: 502 }
+        );
+      }
+    }
 
-    // Save Subscriber Add-On (ONE_TIME) Order & Send Add-On Confirmation Email with Delivery Date & +919167034671
-    if (orderType === "ONE_TIME") {
+    if (paymentStatus !== "captured") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Payment is not captured (current status: ${paymentStatus}).`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const finalFullName =
+      paymentRow.fullNameSnapshot || paymentRow.customer.fullName;
+    const finalFlatWing =
+      paymentRow.flatWingSnapshot || paymentRow.customer.flatWing;
+    const finalSociety =
+      paymentRow.societyNameSnapshot || paymentRow.customer.societyName;
+    const finalAddressSnapshot = paymentRow.addressSnapshot;
+    const finalDeliveryNote =
+      paymentRow.deliveryNoteSnapshot ||
+      "Hang pouch on main door handle (Do not ring bell)";
+
+    // 8A. Fulfill ONE_TIME Add-On Order with Atomic Duplicate-Date Guard (Bug 8.2 Fix)
+    if (paymentRow.orderType === "ONE_TIME") {
       const publicOrderId = `PLS-ADDON-${Math.floor(
         100000 + Math.random() * 900000
       )}`;
 
-      const createdOneTime = await db.$transaction(async (tx) => {
-        await tx.customer.update({
-          where: { id: customer.id },
-          data: {
-            fullName: fullName || customer.fullName,
-            flatWing,
-            societyName,
-            pincode,
-            deliveryNote,
-          },
+      try {
+        const txResult = await db.$transaction(async (tx) => {
+          const alreadyBookedAddon = await tx.oneTimeOrder.findFirst({
+            where: {
+              customerId: paymentRow.customerId,
+              deliveryDate: paymentRow.deliveryDate,
+              status: { not: "CANCELLED" },
+            },
+          });
+
+          if (alreadyBookedAddon) {
+            throw new Error("DUPLICATE_ADDON_FOR_DATE");
+          }
+
+          const claimed = await tx.payment.updateMany({
+            where: { id: paymentRow.id, status: "CREATED" },
+            data: {
+              status: "PAID",
+              razorpayPaymentId,
+              razorpaySignature,
+              createdPublicOrderId: publicOrderId,
+              paidAt: new Date(),
+            },
+          });
+
+          if (claimed.count === 0) {
+            return null;
+          }
+
+          await tx.customer.update({
+            where: { id: paymentRow.customerId },
+            data: {
+              fullName: finalFullName,
+              flatWing: finalFlatWing,
+              societyName: finalSociety,
+              pincode: paymentRow.pincode,
+              deliveryNote: finalDeliveryNote,
+            },
+          });
+
+          return tx.oneTimeOrder.create({
+            data: {
+              orderId: publicOrderId,
+              customerId: paymentRow.customerId,
+              flowerSummary:
+                paymentRow.flowerSummarySnapshot || "100g Add-On Flowers",
+              itemsJson: paymentRow.cartItemsJson || "[]",
+              totalGrams: paymentRow.totalGramsSnapshot || 100,
+              amountPaid: paymentRow.amountInRupees,
+              deliveryDate: paymentRow.deliveryDate,
+              deliverySlot: "6:00 AM – 8:00 AM",
+              addressSnapshot: finalAddressSnapshot,
+              deliveryNote: finalDeliveryNote,
+              status: "CONFIRMED",
+              razorpayOrderId,
+              razorpayPaymentId,
+            },
+          });
         });
 
-        return tx.oneTimeOrder.create({
-          data: {
-            orderId: publicOrderId,
-            customerId: customer.id,
-            flowerSummary: calc.resolvedFlowerSummary || "100g Add-On Flowers",
-            itemsJson: JSON.stringify(body.cartItems || []),
-            totalGrams: calc.totalGrams,
-            amountPaid: calc.amountInRupees,
-            deliveryDate: startDate,
-            deliverySlot: "6:00 AM – 8:00 AM",
-            addressSnapshot,
-            deliveryNote,
-            status: "CONFIRMED",
-            razorpayOrderId,
-            razorpayPaymentId,
-          },
+        if (!txResult) {
+          const existing = await loadExistingOrderForPaidPayment(
+            razorpayOrderId
+          );
+          return NextResponse.json({
+            success: true,
+            traceId,
+            idempotentReplay: true,
+            ...existing,
+          });
+        }
+
+        void sendOrderConfirmationEmail({
+          toEmail: paymentRow.customer.email,
+          customerName: finalFullName,
+          phone: paymentRow.customer.phone,
+          orderId: txResult.orderId,
+          orderType: "ONE_TIME",
+          planTitle: `Subscriber Daily Add-On (${txResult.totalGrams}g Pack)`,
+          flowerSelection: txResult.flowerSummary,
+          amountPaid: txResult.amountPaid,
+          totalDeliveries: 1,
+          firstDeliveryDate: txResult.deliveryDate,
+          lastDeliveryDate: txResult.deliveryDate,
+          addressSnapshot: finalAddressSnapshot,
+          traceId,
         });
-      });
 
-      // Send Add-On Confirmation Email containing exact Delivery Date & Contact No (+91 91670 34671)
-      void sendOrderConfirmationEmail({
-        toEmail: customer.email,
-        customerName: fullName || customer.fullName,
-        phone: customer.phone,
-        orderId: createdOneTime.orderId,
-        orderType: "ONE_TIME",
-        planTitle: `Subscriber Daily Add-On (${calc.totalGrams}g Pack)`,
-        flowerSelection: createdOneTime.flowerSummary,
-        amountPaid: createdOneTime.amountPaid,
-        totalDeliveries: 1,
-        firstDeliveryDate: startDate,
-        lastDeliveryDate: startDate,
-        addressSnapshot,
-        traceId,
-      });
-
-      return NextResponse.json({
-        success: true,
-        traceId,
-        orderType: "ONE_TIME",
-        oneTimeOrder: createdOneTime,
-      });
+        return NextResponse.json({
+          success: true,
+          traceId,
+          orderType: "ONE_TIME",
+          oneTimeOrder: txResult,
+        });
+      } catch (e) {
+        if (e instanceof Error && e.message === "DUPLICATE_ADDON_FOR_DATE") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `An Add-On order is already confirmed for ${paymentRow.deliveryDate}.`,
+            },
+            { status: 409 }
+          );
+        }
+        throw e;
+      }
     }
 
-    // Save SUBSCRIPTION + Generate Schedule Days Atomically in MySQL
-    const plan = calc.resolvedPlan!;
-    const isOneDay = plan.deliveriesCount <= 1 || plan.billingCycle === "day";
+    // 8B. Fulfill SUBSCRIPTION Order & Mark Older Active Subscriptions as COMPLETED (Bug 8.3 Fix)
+    const deliveriesCount = paymentRow.deliveriesCount || 30;
+    const billingCycle = paymentRow.billingCycle || "month";
+    const isOneDay = deliveriesCount <= 1 || billingCycle === "day";
     const isWeekly =
-      !isOneDay && (plan.deliveriesCount <= 7 || plan.billingCycle === "week");
+      !isOneDay && (deliveriesCount <= 7 || billingCycle === "week");
     const maxPausesAllowed = isOneDay
       ? 0
       : isWeekly
       ? 2
-      : Math.max(5, Math.floor(plan.deliveriesCount / 6));
+      : Math.max(5, Math.floor(deliveriesCount / 6));
     const newActiveTier = isOneDay
       ? "ONE_DAY"
       : isWeekly
@@ -226,29 +458,56 @@ export async function POST(req: NextRequest) {
       100000 + Math.random() * 900000
     )}`;
     const lockedDefaultFlowers =
-      calc.resolvedFlowerSummary ||
-      String(body.defaultFlowers || "").trim() ||
-      plan.mixedPredefinedBreakdown;
+      paymentRow.defaultFlowersSnapshot ||
+      "100g Mixed Marigold (मिक्स झेंडू)";
 
     const scheduleRows = buildSubscriptionScheduleRows({
-      startDateStr: startDate,
-      totalDeliveries: plan.deliveriesCount,
-      defaultNote: deliveryNote,
+      startDateStr: paymentRow.deliveryDate,
+      totalDeliveries: deliveriesCount,
+      defaultNote: finalDeliveryNote,
     });
 
-    const firstDeliveryDate = scheduleRows[0]?.deliveryDate || startDate;
+    const firstDeliveryDate =
+      scheduleRows[0]?.deliveryDate || paymentRow.deliveryDate;
     const lastDeliveryDate =
-      scheduleRows[scheduleRows.length - 1]?.deliveryDate || startDate;
+      scheduleRows[scheduleRows.length - 1]?.deliveryDate ||
+      paymentRow.deliveryDate;
 
     const createdSubscription = await db.$transaction(async (tx) => {
-      await tx.customer.update({
-        where: { id: customer.id },
+      const claimed = await tx.payment.updateMany({
+        where: { id: paymentRow.id, status: "CREATED" },
         data: {
-          fullName: fullName || customer.fullName,
-          flatWing,
-          societyName,
-          pincode,
-          deliveryNote,
+          status: "PAID",
+          razorpayPaymentId,
+          razorpaySignature,
+          createdPublicOrderId: publicSubOrderId,
+          paidAt: new Date(),
+        },
+      });
+
+      if (claimed.count === 0) {
+        return null;
+      }
+
+      // Bug 8.3 Fix: Mark any previous ACTIVE subscriptions for this customer as COMPLETED
+      await tx.subscription.updateMany({
+        where: {
+          customerId: paymentRow.customerId,
+          status: "ACTIVE",
+        },
+        data: {
+          status: "COMPLETED",
+        },
+      });
+
+      await tx.customer.update({
+        where: { id: paymentRow.customerId },
+        data: {
+          fullName: finalFullName,
+          flatWing: finalFlatWing,
+          societyName: finalSociety,
+          pincode: paymentRow.pincode,
+          deliveryNote: finalDeliveryNote,
           activeTier: newActiveTier,
         },
       });
@@ -256,21 +515,21 @@ export async function POST(req: NextRequest) {
       return tx.subscription.create({
         data: {
           orderId: publicSubOrderId,
-          customerId: customer.id,
-          planId: plan.id,
-          planTitle: plan.title,
-          billingCycle: plan.billingCycle,
-          pricePaid: plan.price,
-          totalDeliveries: plan.deliveriesCount,
-          remainingDeliveries: plan.deliveriesCount,
+          customerId: paymentRow.customerId,
+          planId: paymentRow.planId || "plan-monthly",
+          planTitle: paymentRow.planTitle || "Monthly Pack",
+          billingCycle,
+          pricePaid: paymentRow.amountInRupees,
+          totalDeliveries: deliveriesCount,
+          remainingDeliveries: deliveriesCount,
           maxPausesAllowed,
           pausesUsedCount: 0,
           status: "ACTIVE",
           startDate: firstDeliveryDate,
           deliverySlot: "6:00 AM – 8:00 AM",
           defaultFlowers: lockedDefaultFlowers,
-          addressSnapshot,
-          deliveryNote,
+          addressSnapshot: finalAddressSnapshot,
+          deliveryNote: finalDeliveryNote,
           razorpayOrderId,
           razorpayPaymentId,
           scheduleDays: {
@@ -285,27 +544,37 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    if (!createdSubscription) {
+      const existing = await loadExistingOrderForPaidPayment(razorpayOrderId);
+      return NextResponse.json({
+        success: true,
+        traceId,
+        idempotentReplay: true,
+        ...existing,
+      });
+    }
+
     await setCustomerSessionCookie({
-      customerId: customer.id,
-      email: customer.email,
-      phone: customer.phone,
-      fullName: fullName || customer.fullName,
+      customerId: paymentRow.customerId,
+      email: paymentRow.customer.email,
+      phone: paymentRow.customer.phone,
+      fullName: finalFullName,
       activeTier: newActiveTier,
     });
 
     void sendOrderConfirmationEmail({
-      toEmail: customer.email,
-      customerName: fullName || customer.fullName,
-      phone: customer.phone,
+      toEmail: paymentRow.customer.email,
+      customerName: finalFullName,
+      phone: paymentRow.customer.phone,
       orderId: createdSubscription.orderId,
       orderType: "SUBSCRIPTION",
-      planTitle: plan.title,
+      planTitle: createdSubscription.planTitle,
       flowerSelection: lockedDefaultFlowers,
-      amountPaid: plan.price,
-      totalDeliveries: plan.deliveriesCount,
+      amountPaid: createdSubscription.pricePaid,
+      totalDeliveries: createdSubscription.totalDeliveries,
       firstDeliveryDate,
       lastDeliveryDate,
-      addressSnapshot,
+      addressSnapshot: finalAddressSnapshot,
       traceId,
     });
 
@@ -331,7 +600,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         traceId,
-        error: "Failed to save order in database. Check terminal logs.",
+        error: "Failed to verify and save order. Please contact support.",
       },
       { status: 500 }
     );

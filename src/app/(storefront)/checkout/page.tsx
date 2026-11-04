@@ -364,8 +364,8 @@ function CheckoutContent() {
 
   const finalizeVerifiedOrderOnServer = async (paymentPayload: {
     razorpayOrderId: string;
-    razorpayPaymentId?: string;
-    razorpaySignature?: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
   }) => {
     const deliveryInstruction =
       formData.deliveryNote.trim() ||
@@ -384,15 +384,6 @@ function CheckoutContent() {
         pincode: formData.pincode.trim(),
         startDate: formData.startDate,
         deliveryNote: deliveryInstruction,
-        planId: selectedPlan.id,
-        planSlug: selectedPlan.slug,
-        weightGrams: resolvedPlanSelection.weightGrams,
-        productVariantId: resolvedPlanSelection.variant.id,
-        defaultFlowers: lockedFlowerLabel,
-        cartItems: cartItems.slice(0, 1).map((c) => ({
-          flowerId: c.flowerId,
-          grams: c.grams,
-        })),
         ...paymentPayload,
       }),
     });
@@ -553,6 +544,10 @@ function CheckoutContent() {
     setIsProcessing(true);
 
     try {
+      const deliveryInstruction =
+        formData.deliveryNote.trim() ||
+        "Hang pouch on main door handle (Do not ring bell)";
+
       const createRes = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -560,8 +555,12 @@ function CheckoutContent() {
           orderType: isOneTimeCartCheckout ? "ONE_TIME" : "SUBSCRIPTION",
           email: formData.email.trim(),
           phone: formData.phone.trim(),
+          fullName: formData.fullName.trim(),
+          flatWing: formData.flatWing.trim(),
+          societyName: formData.societyName.trim(),
           pincode: formData.pincode.trim(),
           startDate: formData.startDate,
+          deliveryNote: deliveryInstruction,
           planId: selectedPlan.id,
           planSlug: selectedPlan.slug,
           weightGrams: resolvedPlanSelection.weightGrams,
@@ -575,74 +574,67 @@ function CheckoutContent() {
       });
 
       const createData = await createRes.json();
-      if (!createRes.ok || !createData.success) {
+      if (
+        !createRes.ok ||
+        !createData.success ||
+        !createData.razorpayOrderId ||
+        !createData.razorpayKeyId
+      ) {
         setFormError(
-          createData.error || "Could not initialize order on server."
+          createData.error || "Could not initialize payment order on server."
         );
         setIsProcessing(false);
         return;
       }
 
-      if (
-        createData.paymentMode === "RAZORPAY_LIVE" &&
-        createData.razorpayKeyId
-      ) {
-        const sdkLoaded = await loadRazorpayScript();
-        if (!sdkLoaded || !window.Razorpay) {
-          setFormError(
-            "Could not load Razorpay payment gateway. Please check your internet connection."
-          );
-          setIsProcessing(false);
-          return;
-        }
-
-        const rzp = new window.Razorpay({
-          key: createData.razorpayKeyId,
-          amount: createData.amountInPaise,
-          currency: "INR",
-          name: "PALASSH Flowers",
-          description: isOneTimeCartCheckout
-            ? `Subscriber Add-On (${totalCartGrams}g)`
-            : `${selectedPlan.title} (${lockedFlowerLabel})`,
-          order_id: createData.razorpayOrderId,
-          prefill: {
-            name: formData.fullName.trim(),
-            email: formData.email.trim(),
-            contact: formData.phone.trim(),
-          },
-          theme: { color: "#D95326" },
-          handler: async (response: {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
-          }) => {
-            await finalizeVerifiedOrderOnServer({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-          },
-          modal: {
-            ondismiss: () => {
-              setIsProcessing(false);
-            },
-          },
-        });
-
-        rzp.open();
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded || !window.Razorpay) {
+        setFormError(
+          "Could not load Razorpay payment gateway. Please check your internet connection."
+        );
+        setIsProcessing(false);
         return;
       }
 
-      await finalizeVerifiedOrderOnServer({
-        razorpayOrderId: createData.razorpayOrderId,
-        razorpayPaymentId: `pay_sim_${Date.now()}`,
+      const rzp = new window.Razorpay({
+        key: createData.razorpayKeyId,
+        amount: createData.amountInPaise,
+        currency: "INR",
+        name: "PALASSH Flowers",
+        description: isOneTimeCartCheckout
+          ? `Subscriber Add-On (${totalCartGrams}g)`
+          : `${selectedPlan.title} (${lockedFlowerLabel})`,
+        order_id: createData.razorpayOrderId,
+        prefill: {
+          name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          contact: formData.phone.trim(),
+        },
+        theme: { color: "#D95326" },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          await finalizeVerifiedOrderOnServer({
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          },
+        },
       });
+
+      rzp.open();
     } catch {
       setFormError("Network error while processing your order.");
       setIsProcessing(false);
     }
   };
-
   const payableAmount = isOneTimeCartCheckout
     ? totalCartAmount
     : resolvedPlanSelection.price;

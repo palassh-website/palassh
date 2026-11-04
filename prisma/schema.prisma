@@ -7,128 +7,153 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. Customer Account (Links 10-Digit Phone <-> Verified Email)
 model Customer {
   id            String         @id @default(cuid())
-  phone         String         @unique @db.VarChar(15)
-  email         String         @unique @db.VarChar(191)
-  fullName      String         @db.VarChar(120)
-  flatWing      String?        @db.VarChar(120)
-  societyName   String?        @db.VarChar(191)
-  pincode       String?        @db.VarChar(10)
-  deliveryNote  String?        @db.VarChar(255)
-  activeTier    String         @default("NORMAL") @db.VarChar(30) // NORMAL | ONE_DAY | WEEKLY | MONTHLY
+  email         String         @unique
+  phone         String         @unique
+  fullName      String         @default("PALASSH Devotee")
+  flatWing      String         @default("")
+  societyName   String         @default("")
+  pincode       String         @default("400605")
+  deliveryNote  String         @default("Hang pouch on main door handle (Do not ring bell)")
+  activeTier    String         @default("NORMAL") // NORMAL | ONE_DAY | WEEKLY | MONTHLY
   isVerified    Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   subscriptions Subscription[]
   oneTimeOrders OneTimeOrder[]
-
-  @@index([phone])
-  @@index([email])
-  @@index([pincode])
+  payments      Payment[]
 }
 
-// 2. Email OTP Verification Table (Auto-expiring 6-digit codes)
 model OtpVerification {
-  id         String   @id @default(cuid())
-  email      String   @db.VarChar(191)
-  phone      String?  @db.VarChar(15)
-  code       String   @db.VarChar(10)
-  purpose    String   @default("AUTH") @db.VarChar(30) // CHECKOUT_VERIFY | LOGIN_SYNC
-  expiresAt  DateTime
-  isUsed     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  email     String
+  phone     String   @default("")
+  code      String
+  purpose   String   @default("CHECKOUT_VERIFY")
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([email, code])
-  @@index([phone])
 }
 
-// 3. Subscription Orders (One-Day ₹49, Weekly ₹329, Monthly ₹1350)
+model Payment {
+  id                      String    @id @default(cuid())
+  razorpayOrderId         String    @unique
+  razorpayPaymentId       String?   @unique
+  razorpaySignature       String?   @db.VarChar(255)
+  customerId              String
+  customer                Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderType               String    // SUBSCRIPTION | ONE_TIME
+  status                  String    @default("CREATED") // CREATED | PAID | FAILED
+  amountInRupees          Int
+  amountInPaise           Int
+  currency                String    @default("INR")
+
+  // Server-locked order snapshot (Client cannot tamper with these during verify)
+  pincode                 String
+  deliveryDate            String
+  fullNameSnapshot        String    @default("")
+  flatWingSnapshot        String    @default("")
+  societyNameSnapshot     String    @default("")
+  addressSnapshot         String    @db.Text
+  deliveryNoteSnapshot    String    @db.Text
+
+  // Subscription snapshot fields
+  planId                  String?
+  planSlug                String?
+  planTitle               String?
+  billingCycle            String?
+  deliveriesCount         Int?
+  weightGrams             Int?
+  productVariantId        String?
+  defaultFlowersSnapshot  String?   @db.Text
+
+  // One-Time Add-On snapshot fields
+  cartItemsJson           String?   @db.Text
+  flowerSummarySnapshot   String?   @db.Text
+  totalGramsSnapshot      Int?
+
+  // Resulting created order reference for idempotent replay responses
+  createdPublicOrderId    String?   @unique
+  paidAt                  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([customerId, status])
+}
+
 model Subscription {
   id                  String                  @id @default(cuid())
-  orderId             String                  @unique @db.VarChar(40) // e.g., PLS-SUB-849201
+  orderId             String                  @unique
   customerId          String
   customer            Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  
-  planId              String                  @db.VarChar(40) // plan-daily | plan-weekly | plan-monthly
-  planTitle           String                  @db.VarChar(120)
-  billingCycle        String                  @db.VarChar(20) // day | week | month
+  planId              String
+  planTitle           String
+  billingCycle        String
   pricePaid           Int
-  
-  totalDeliveries     Int                     // 1, 7, or 30
+  totalDeliveries     Int
   remainingDeliveries Int
-  maxPausesAllowed    Int                     @default(0) // Weekly = 2, Monthly = 5
+  maxPausesAllowed    Int                     @default(0)
   pausesUsedCount     Int                     @default(0)
-  
-  status              String                  @default("ACTIVE") @db.VarChar(30) // ACTIVE | PAUSED | COMPLETED | CANCELLED
-  startDate           String                  @db.VarChar(20) // YYYY-MM-DD
-  deliverySlot        String                  @default("6:00 AM - 8:00 AM") @db.VarChar(40)
-  defaultFlowers      String                  @db.Text // Locked Default Flower Pack
-  
+  status              String                  @default("ACTIVE")
+  startDate           String
+  deliverySlot        String                  @default("6:00 AM – 8:00 AM")
+  defaultFlowers      String                  @db.Text
   addressSnapshot     String                  @db.Text
-  deliveryNote        String?                 @db.VarChar(255)
-  
-  razorpayOrderId     String?                 @db.VarChar(100)
-  razorpayPaymentId   String?                 @db.VarChar(100)
-  
+  deliveryNote        String                  @db.Text
+  razorpayOrderId     String?                 @unique
+  razorpayPaymentId   String?                 @unique
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
 
   scheduleDays        DailyDeliverySchedule[]
 
-  @@index([customerId])
-  @@index([status])
+  @@index([customerId, status])
 }
 
-// 4. Day-Wise Calendar Rows (Generated for 7 or 30 days on subscription purchase)
 model DailyDeliverySchedule {
   id             String       @id @default(cuid())
   subscriptionId String
   subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  
   dayNumber      Int
-  deliveryDate   String       @db.VarChar(20) // YYYY-MM-DD
-  status         String       @default("SCHEDULED") @db.VarChar(30) // SCHEDULED | PAUSED | CANCELLED | DELIVERED
-  orderNote      String?      @db.VarChar(255)
-  
+  deliveryDate   String       // YYYY-MM-DD
+  status         String       @default("SCHEDULED") // SCHEDULED | PAUSED | CANCELLED
+  orderNote      String       @default("")
+  createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  @@unique([subscriptionId, deliveryDate])
   @@index([deliveryDate, status])
+  @@index([subscriptionId, deliveryDate])
 }
 
-// 5. Separate One-Time Flower Purchases (100g, 250g, 500g, 1000g packs)
 model OneTimeOrder {
   id                String   @id @default(cuid())
-  orderId           String   @unique @db.VarChar(40) // e.g., PLS-OT-512098
+  orderId           String   @unique
   customerId        String
   customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  
   flowerSummary     String   @db.Text
-  itemsJson         String   @db.Text // JSON array of CartItems
+  itemsJson         String   @db.Text
   totalGrams        Int
   amountPaid        Int
-  
-  deliveryDate      String   @db.VarChar(20) // YYYY-MM-DD
-  deliverySlot      String   @default("6:00 AM - 8:00 AM") @db.VarChar(40)
+  deliveryDate      String   // YYYY-MM-DD
+  deliverySlot      String   @default("6:00 AM – 8:00 AM")
   addressSnapshot   String   @db.Text
-  deliveryNote      String?  @db.VarChar(255)
-  status            String   @default("CONFIRMED") @db.VarChar(30) // CONFIRMED | DELIVERED | CANCELLED
-  
-  razorpayOrderId   String?  @db.VarChar(100)
-  razorpayPaymentId String?  @db.VarChar(100)
-  
+  deliveryNote      String   @db.Text
+  status            String   @default("CONFIRMED")
+  razorpayOrderId   String?  @unique
+  razorpayPaymentId String?  @unique
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  @@index([customerId])
   @@index([deliveryDate, status])
+  @@index([customerId, deliveryDate])
 }
 
-// 6. Storefront Dynamic Config (Flowers Catalog, Plan Prices, Festive Calendar Dates, Hero Banners, Reviews)
 model StoreConfig {
-  configKey   String   @id @db.VarChar(100) // FLOWERS_CATALOG | PLANS_CONFIG | FESTIVE_DATES | HERO_BANNERS | REVIEWS
+  configKey   String   @id
   jsonPayload String   @db.LongText
   updatedAt   DateTime @updatedAt
 }

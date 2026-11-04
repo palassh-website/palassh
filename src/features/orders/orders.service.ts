@@ -1,10 +1,6 @@
 import { db } from "@/lib/db";
 import { logger, startTimer } from "@/lib/logger";
 
-/**
- * Returns authoritative Indian Standard Time (IST) current YYYY-MM-DD, tomorrow YYYY-MM-DD, and current hour (0-23).
- * Safe on both local Windows/Linux and Vercel UTC serverless containers.
- */
 export function getCurrentIstClock(): {
   todayDateStr: string;
   tomorrowDateStr: string;
@@ -33,7 +29,6 @@ export function getCurrentIstClock(): {
 
   const todayDateStr = `${yyyy}-${mm}-${dd}`;
 
-  // Calculate tomorrow in IST
   const tomorrowDate = new Date(`${todayDateStr}T00:00:00+05:30`);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tParts = new Intl.DateTimeFormat("en-CA", {
@@ -55,9 +50,6 @@ export function getCurrentIstClock(): {
   };
 }
 
-/**
- * Validates whether a target delivery date (YYYY-MM-DD) is eligible for modification before 8:00 PM IST cut-off
- */
 export function validateEightPmCutoff(targetDateStr: string): {
   allowed: boolean;
   reason?: string;
@@ -71,7 +63,6 @@ export function validateEightPmCutoff(targetDateStr: string): {
     };
   }
 
-  // If user tries to modify tomorrow's delivery at or after 20:00 (8:00 PM IST) tonight
   if (targetDateStr === clock.tomorrowDateStr && clock.currentHourIst >= 20) {
     return {
       allowed: false,
@@ -82,23 +73,18 @@ export function validateEightPmCutoff(targetDateStr: string): {
   return { allowed: true };
 }
 
-/**
- * Helper to add +1 day to a YYYY-MM-DD string
- */
 function getNextDayString(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() + 1);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * Executes Pause, Resume, Direct Cancel (when Pause Quota is exhausted), or Order Note update in MySQL
- */
 export async function mutateSubscriptionCalendarDay(params: {
-  subscriptionId: string;
+  customerId: string;
+  subscriptionIdOrOrderId: string;
   targetDateStr: string;
   action: "TOGGLE_PAUSE_OR_CANCEL" | "UPDATE_NOTE";
   orderNote?: string;
@@ -106,9 +92,22 @@ export async function mutateSubscriptionCalendarDay(params: {
 }) {
   const getElapsed = startTimer();
 
-  // 1. Load Subscription and all its Calendar Schedule Days
-  const sub = await db.subscription.findUnique({
-    where: { id: params.subscriptionId },
+  if (!params.customerId) {
+    return {
+      success: false,
+      status: 401,
+      error: "Authentication required to modify subscription schedule.",
+    };
+  }
+
+  const sub = await db.subscription.findFirst({
+    where: {
+      customerId: params.customerId,
+      OR: [
+        { id: params.subscriptionIdOrOrderId },
+        { orderId: params.subscriptionIdOrOrderId },
+      ],
+    },
     include: {
       scheduleDays: {
         orderBy: { dayNumber: "asc" },
@@ -120,7 +119,7 @@ export async function mutateSubscriptionCalendarDay(params: {
     return {
       success: false,
       status: 404,
-      error: "Subscription not found in database.",
+      error: "Subscription not found or does not belong to your account.",
     };
   }
 
@@ -136,7 +135,6 @@ export async function mutateSubscriptionCalendarDay(params: {
     };
   }
 
-  // 2. Enforce 8:00 PM IST Evening Cut-Off
   const cutoff = validateEightPmCutoff(params.targetDateStr);
   if (!cutoff.allowed) {
     logger.warn({
@@ -154,9 +152,11 @@ export async function mutateSubscriptionCalendarDay(params: {
     };
   }
 
-  // 3A. Handle Optional Doorstep Order Note Update for that specific date
+  // 3A. Handle Optional Doorstep Order Note Update
   if (params.action === "UPDATE_NOTE") {
-    const cleanedNote = String(params.orderNote || "").trim();
+    const cleanedNote = String(params.orderNote || "")
+      .trim()
+      .slice(0, 250);
     await db.dailyDeliverySchedule.update({
       where: { id: targetRow.id },
       data: { orderNote: cleanedNote },
@@ -167,14 +167,6 @@ export async function mutateSubscriptionCalendarDay(params: {
       include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
     });
 
-    logger.info({
-      module: "ORDERS",
-      action: "DATE_NOTE_UPDATED",
-      traceId: params.traceId,
-      durationMs: getElapsed(),
-      message: `Updated delivery note for ${params.targetDateStr} on ${sub.orderId}`,
-    });
-
     return {
       success: true,
       message: `Saved delivery note for ${params.targetDateStr}!`,
@@ -182,133 +174,171 @@ export async function mutateSubscriptionCalendarDay(params: {
     };
   }
 
-  // 3B. Handle Pause / Resume / Quota-Exceeded Direct Cancel
   if (targetRow.status === "CANCELLED") {
     return {
       success: false,
       status: 400,
-      error: "This delivery date was already cancelled after exceeding your pause quota and cannot be resumed.",
+      error:
+        "This delivery date was already cancelled after exceeding your pause quota and cannot be resumed.",
     };
   }
 
-  // Case I: Day is currently PAUSED -> RESUME it back to SCHEDULED & remove the last carry-forward day
+  // Case I: Day is currently PAUSED -> Atomically RESUME to SCHEDULED & delete only the latest SCHEDULED carry-forward row (Bug 6 & Bug 7 Fix)
   if (targetRow.status === "PAUSED") {
-    const lastDay = sub.scheduleDays[sub.scheduleDays.length - 1];
-
-    const updatedSub = await db.$transaction(async (tx) => {
-      await tx.dailyDeliverySchedule.update({
-        where: { id: targetRow.id },
-        data: { status: "SCHEDULED" },
-      });
-
-      // Remove the extra carried-forward day at the tail if schedule length exceeds totalDeliveries
-      if (
-        sub.scheduleDays.length > sub.totalDeliveries &&
-        lastDay &&
-        lastDay.id !== targetRow.id
-      ) {
-        await tx.dailyDeliverySchedule.delete({
-          where: { id: lastDay.id },
+    try {
+      const updatedSub = await db.$transaction(async (tx) => {
+        const dayClaim = await tx.dailyDeliverySchedule.updateMany({
+          where: { id: targetRow.id, status: "PAUSED" },
+          data: { status: "SCHEDULED" },
         });
-      }
 
-      const newPausesUsed = Math.max(0, sub.pausesUsedCount - 1);
-      return tx.subscription.update({
-        where: { id: sub.id },
-        data: { pausesUsedCount: newPausesUsed },
-        include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
+        if (dayClaim.count === 0) {
+          throw new Error("CONCURRENT_MODIFICATION");
+        }
+
+        // Bug 7 Fix: Find the latest SCHEDULED carry-forward row (not targetRow) so we never delete a PAUSED or CANCELLED row
+        const allRows = await tx.dailyDeliverySchedule.findMany({
+          where: { subscriptionId: sub.id },
+          orderBy: { deliveryDate: "desc" },
+        });
+
+        if (allRows.length > sub.totalDeliveries) {
+          const tailScheduledRow = allRows.find(
+            (r) => r.status === "SCHEDULED" && r.id !== targetRow.id
+          );
+          if (tailScheduledRow) {
+            await tx.dailyDeliverySchedule.delete({
+              where: { id: tailScheduledRow.id },
+            });
+          }
+        }
+
+        await tx.subscription.updateMany({
+          where: { id: sub.id, pausesUsedCount: { gt: 0 } },
+          data: { pausesUsedCount: { decrement: 1 } },
+        });
+
+        return tx.subscription.findUniqueOrThrow({
+          where: { id: sub.id },
+          include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
+        });
       });
-    });
 
-    logger.info({
-      module: "ORDERS",
-      action: "DELIVERY_DATE_RESUMED",
-      traceId: params.traceId,
-      durationMs: getElapsed(),
-      message: `Resumed delivery for ${params.targetDateStr} on ${sub.orderId}`,
-    });
-
-    return {
-      success: true,
-      message: `Resumed morning 6:00 AM – 8:00 AM delivery for ${params.targetDateStr}!`,
-      subscription: updatedSub,
-    };
+      return {
+        success: true,
+        message: `Resumed morning 6:00 AM – 8:00 AM delivery for ${params.targetDateStr}!`,
+        subscription: updatedSub,
+      };
+    } catch {
+      return {
+        success: false,
+        status: 409,
+        error: "Schedule was modified concurrently. Please refresh and try again.",
+      };
+    }
   }
 
-  // Case II: Day is SCHEDULED and user has remaining pauses (Weekly <= 2, Monthly <= 5) -> PAUSE & Carry Forward (+1 day)
-  if (sub.pausesUsedCount < sub.maxPausesAllowed) {
-    const lastDay = sub.scheduleDays[sub.scheduleDays.length - 1];
-    const carryForwardDateStr = getNextDayString(
-      lastDay ? lastDay.deliveryDate : params.targetDateStr
-    );
-    const nextDayNumber = (lastDay ? lastDay.dayNumber : sub.totalDeliveries) + 1;
-    const newPausesCount = sub.pausesUsedCount + 1;
-
-    const updatedSub = await db.$transaction(async (tx) => {
-      await tx.dailyDeliverySchedule.update({
-        where: { id: targetRow.id },
+  // Case II & III: Day is SCHEDULED -> Atomically claim pause quota OR cancel if quota exhausted (Bug 6 Fix)
+  try {
+    const txOutcome = await db.$transaction(async (tx) => {
+      // 1. Atomically transition targetRow from SCHEDULED -> PAUSED first
+      const dayClaim = await tx.dailyDeliverySchedule.updateMany({
+        where: { id: targetRow.id, status: "SCHEDULED" },
         data: { status: "PAUSED" },
       });
 
-      await tx.dailyDeliverySchedule.create({
+      if (dayClaim.count === 0) {
+        throw new Error("CONCURRENT_MODIFICATION");
+      }
+
+      // 2. Try to atomically claim 1 pause from remaining quota (pausesUsedCount < maxPausesAllowed)
+      const quotaClaim = await tx.subscription.updateMany({
+        where: {
+          id: sub.id,
+          customerId: params.customerId,
+          pausesUsedCount: { lt: sub.maxPausesAllowed },
+        },
         data: {
-          subscriptionId: sub.id,
-          dayNumber: nextDayNumber,
-          deliveryDate: carryForwardDateStr,
-          status: "SCHEDULED",
-          orderNote: sub.deliveryNote,
+          pausesUsedCount: { increment: 1 },
         },
       });
 
-      return tx.subscription.update({
+      if (quotaClaim.count === 1) {
+        // Quota was available -> Create carry-forward SCHEDULED day after current latest deliveryDate
+        const latestDay = await tx.dailyDeliverySchedule.findFirst({
+          where: { subscriptionId: sub.id },
+          orderBy: { deliveryDate: "desc" },
+        });
+
+        const carryForwardDateStr = getNextDayString(
+          latestDay ? latestDay.deliveryDate : params.targetDateStr
+        );
+        const nextDayNumber =
+          (latestDay ? latestDay.dayNumber : sub.totalDeliveries) + 1;
+
+        await tx.dailyDeliverySchedule.create({
+          data: {
+            subscriptionId: sub.id,
+            dayNumber: nextDayNumber,
+            deliveryDate: carryForwardDateStr,
+            status: "SCHEDULED",
+            orderNote: sub.deliveryNote,
+          },
+        });
+
+        const refreshed = await tx.subscription.findUniqueOrThrow({
+          where: { id: sub.id },
+          include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
+        });
+
+        return {
+          mode: "PAUSED_CARRIED_FORWARD" as const,
+          carryForwardDateStr,
+          subscription: refreshed,
+        };
+      }
+
+      // Quota was already exhausted -> Convert targetRow to CANCELLED and decrement remainingDeliveries
+      await tx.dailyDeliverySchedule.update({
+        where: { id: targetRow.id },
+        data: { status: "CANCELLED" },
+      });
+
+      await tx.subscription.updateMany({
+        where: { id: sub.id, remainingDeliveries: { gt: 0 } },
+        data: { remainingDeliveries: { decrement: 1 } },
+      });
+
+      const refreshed = await tx.subscription.findUniqueOrThrow({
         where: { id: sub.id },
-        data: { pausesUsedCount: newPausesCount },
         include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
       });
+
+      return {
+        mode: "CANCELLED_QUOTA_EXCEEDED" as const,
+        carryForwardDateStr: "",
+        subscription: refreshed,
+      };
     });
 
-    logger.info({
-      module: "ORDERS",
-      action: "DELIVERY_DATE_PAUSED_CARRIED_FORWARD",
-      traceId: params.traceId,
-      durationMs: getElapsed(),
-      message: `Paused ${params.targetDateStr} (${newPausesCount}/${sub.maxPausesAllowed}) -> Carried forward to ${carryForwardDateStr}`,
-    });
+    if (txOutcome.mode === "PAUSED_CARRIED_FORWARD") {
+      return {
+        success: true,
+        message: `Paused ${params.targetDateStr} (${txOutcome.subscription.pausesUsedCount}/${txOutcome.subscription.maxPausesAllowed} pauses used). Your morning delivery is carried forward to ${txOutcome.carryForwardDateStr}!`,
+        subscription: txOutcome.subscription,
+      };
+    }
 
     return {
       success: true,
-      message: `Paused ${params.targetDateStr} (${newPausesCount}/${sub.maxPausesAllowed} pauses used). Your morning delivery is carried forward to ${carryForwardDateStr}!`,
-      subscription: updatedSub,
+      message: `Pause limit (${txOutcome.subscription.maxPausesAllowed}/${txOutcome.subscription.maxPausesAllowed}) reached. Delivery for ${params.targetDateStr} has been CANCELLED without carry-forward.`,
+      subscription: txOutcome.subscription,
+    };
+  } catch {
+    return {
+      success: false,
+      status: 409,
+      error: "Schedule was modified concurrently. Please refresh and try again.",
     };
   }
-
-  // Case III: Pause Quota Exhausted (3rd+ on Weekly, 6th+ on Monthly) -> Direct CANCEL (No carry-forward)
-  const newRemaining = Math.max(0, sub.remainingDeliveries - 1);
-
-  const updatedSub = await db.$transaction(async (tx) => {
-    await tx.dailyDeliverySchedule.update({
-      where: { id: targetRow.id },
-      data: { status: "CANCELLED" },
-    });
-
-    return tx.subscription.update({
-      where: { id: sub.id },
-      data: { remainingDeliveries: newRemaining },
-      include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
-    });
-  });
-
-  logger.warn({
-    module: "ORDERS",
-    action: "DELIVERY_CANCELLED_QUOTA_EXCEEDED",
-    traceId: params.traceId,
-    durationMs: getElapsed(),
-    message: `Pause quota (${sub.maxPausesAllowed}) exceeded on ${sub.orderId}. Directly cancelled ${params.targetDateStr}.`,
-  });
-
-  return {
-    success: true,
-    message: `Pause limit (${sub.maxPausesAllowed}/${sub.maxPausesAllowed}) reached. Delivery for ${params.targetDateStr} has been CANCELLED without carry-forward.`,
-    subscription: updatedSub,
-  };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getEnvConfig } from "@/lib/env";
+import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { validateAndCalculateOrderServerSide } from "@/features/checkout/checkout.service";
 
@@ -9,20 +10,52 @@ export async function POST(req: NextRequest) {
   const getElapsed = startTimer();
 
   try {
+    // 1. Fail Closed if Razorpay Credentials are Missing
+    const env = getEnvConfig();
+    if (
+      !env.RAZORPAY_KEY_ID ||
+      !env.RAZORPAY_KEY_SECRET ||
+      !env.RAZORPAY_KEY_ID.startsWith("rzp_")
+    ) {
+      logger.error({
+        module: "RAZORPAY",
+        action: "RAZORPAY_KEYS_MISSING_FAIL_CLOSED",
+        traceId,
+        durationMs: getElapsed(),
+        message:
+          "Checkout blocked because RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET is not configured.",
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Payment gateway is not configured on the server.",
+        },
+        { status: 500 }
+      );
+    }
+
     const body = await req.json();
     const orderType: "SUBSCRIPTION" | "ONE_TIME" =
       body.orderType === "ONE_TIME" ? "ONE_TIME" : "SUBSCRIPTION";
 
-    const email = String(body.email || "")
+    // Prefer cryptographic session customerId, fallback to OTP-verified email/phone match
+    const session = await getActiveCustomerSession();
+    const email = String(body.email || session?.email || "")
       .trim()
       .toLowerCase();
-    const phone = String(body.phone || "")
+    const phone = String(body.phone || session?.phone || "")
       .replace(/\D/g, "")
       .slice(-10);
+    const fullName = String(body.fullName || session?.fullName || "").trim();
+    const flatWing = String(body.flatWing || "").trim();
+    const societyName = String(body.societyName || "").trim();
     const pincode = String(body.pincode || "").trim();
     const deliveryDate = String(
       body.startDate || body.deliveryDate || ""
     ).trim();
+    const deliveryNote =
+      String(body.deliveryNote || "").trim() ||
+      "Hang pouch on main door handle (Do not ring bell)";
 
     if (!email.includes("@") || phone.length !== 10) {
       return NextResponse.json(
@@ -35,10 +68,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 2. Load Verified Customer & Active Subscription
     const customer = await db.customer.findFirst({
-      where: {
-        OR: [{ email }, { phone }],
-      },
+      where: session?.customerId
+        ? { id: session.customerId }
+        : { AND: [{ email }, { phone }] },
       include: {
         subscriptions: {
           where: { status: "ACTIVE" },
@@ -55,13 +89,6 @@ export async function POST(req: NextRequest) {
     });
 
     if (!customer || !customer.isVerified) {
-      logger.warn({
-        module: "CHECKOUT",
-        action: "UNVERIFIED_CUSTOMER_BLOCKED",
-        traceId,
-        durationMs: getElapsed(),
-        message: `Checkout blocked because ${email} / ${phone} has not completed Email OTP verification.`,
-      });
       return NextResponse.json(
         {
           success: false,
@@ -85,6 +112,8 @@ export async function POST(req: NextRequest) {
       ? activeSub.scheduleDays.map((d) => d.deliveryDate)
       : [];
 
+    // 3. Authoritative Server-Side Price & Eligibility Calculation
+    const requestedWeight = Number(body.weightGrams) || 100;
     const calc = await validateAndCalculateOrderServerSide({
       orderType,
       pincode,
@@ -93,7 +122,7 @@ export async function POST(req: NextRequest) {
       customerTier: resolvedTier,
       activeSubScheduledDates,
       planIdOrSlug: body.planId || body.planSlug,
-      weightGrams: Number(body.weightGrams) || 100,
+      weightGrams: requestedWeight,
       productVariantId: body.productVariantId,
       defaultFlowers: body.defaultFlowers,
       cartItems: body.cartItems,
@@ -106,7 +135,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strict integer paise (Razorpay rejects floats or < 100 paise)
     const amountInPaise = Math.round(Number(calc.amountInRupees) * 100);
     if (isNaN(amountInPaise) || amountInPaise < 100) {
       return NextResponse.json(
@@ -118,106 +146,120 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const env = getEnvConfig();
+    // 4. Create Razorpay Order via Server-to-Server API (with 8s timeout)
+    const authHeader = Buffer.from(
+      `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
+    ).toString("base64");
 
-    // 3. Create Real Razorpay Order when Keys are Present
-    if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET) {
-      if (!env.RAZORPAY_KEY_ID.startsWith("rzp_")) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Invalid RAZORPAY_KEY_ID format ("${env.RAZORPAY_KEY_ID.slice(
-              0,
-              8
-            )}..."). It must start with "rzp_live_" or "rzp_test_".`,
-          },
-          { status: 400 }
-        );
-      }
-
-      const authHeader = Buffer.from(
-        `${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`
-      ).toString("base64");
-
-      const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${authHeader}`,
-        },
-        body: JSON.stringify({
-          amount: amountInPaise,
-          currency: "INR",
-          receipt: `pls_${Date.now()}`,
-          notes: {
-            traceId,
-            customerEmail: email,
-            customerPhone: phone,
-            orderType,
-          },
-        }),
-        cache: "no-store",
-      });
-
-      const rzpData = await rzpRes.json().catch(() => ({}));
-
-      if (!rzpRes.ok || !rzpData.id) {
-        const rzpErrorReason =
-          rzpData?.error?.description ||
-          rzpData?.error?.reason ||
-          rzpData?.error?.code ||
-          `HTTP ${rzpRes.status}`;
-
-        logger.error({
-          module: "RAZORPAY",
-          action: "RAZORPAY_ORDER_CREATE_FAILED",
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${authHeader}`,
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: `pls_${Date.now()}`,
+        notes: {
           traceId,
-          durationMs: getElapsed(),
-          message: `Razorpay rejected order creation: ${rzpErrorReason}`,
-          meta: {
-            httpStatus: rzpRes.status,
-            keyIdPrefix: env.RAZORPAY_KEY_ID.slice(0, 12),
-            amountInPaise,
-            razorpayError: rzpData?.error || rzpData,
-          },
-        });
+          customerId: customer.id,
+          orderType,
+          deliveryDate,
+        },
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
 
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Razorpay Error: ${rzpErrorReason}`,
-          },
-          { status: rzpRes.status === 401 ? 401 : 502 }
-        );
-      }
+    const rzpData = await rzpRes.json().catch(() => ({}));
 
-      logger.info({
+    if (!rzpRes.ok || !rzpData.id) {
+      const rzpErrorReason =
+        rzpData?.error?.description ||
+        rzpData?.error?.reason ||
+        `HTTP ${rzpRes.status}`;
+
+      logger.error({
         module: "RAZORPAY",
-        action: "RAZORPAY_ORDER_CREATED",
+        action: "RAZORPAY_ORDER_CREATE_FAILED",
         traceId,
         durationMs: getElapsed(),
-        message: `Created live Razorpay order ${rzpData.id} for ₹${calc.amountInRupees}`,
+        message: `Razorpay rejected order creation: ${rzpErrorReason}`,
       });
 
-      return NextResponse.json({
-        success: true,
-        traceId,
-        paymentMode: "RAZORPAY_LIVE",
-        razorpayKeyId: env.RAZORPAY_KEY_ID,
-        razorpayOrderId: rzpData.id,
-        amountInRupees: calc.amountInRupees,
-        amountInPaise,
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Razorpay Error: ${rzpErrorReason}`,
+        },
+        { status: 502 }
+      );
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Razorpay API keys (NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET) are missing in .env.",
+    const effectiveFullName = fullName || customer.fullName || "PALASSH Devotee";
+    const effectiveFlatWing = flatWing || customer.flatWing || "";
+    const effectiveSociety = societyName || customer.societyName || "";
+    const addressSnapshot = `${effectiveFlatWing}, ${effectiveSociety} - ${pincode}`;
+
+    // 5. Persist Immutable Pending Payment Snapshot in MySQL
+    await db.payment.create({
+      data: {
+        razorpayOrderId: String(rzpData.id),
+        customerId: customer.id,
+        orderType,
+        status: "CREATED",
+        amountInRupees: calc.amountInRupees,
+        amountInPaise,
+        currency: "INR",
+        pincode,
+        deliveryDate,
+        fullNameSnapshot: effectiveFullName,
+        flatWingSnapshot: effectiveFlatWing,
+        societyNameSnapshot: effectiveSociety,
+        addressSnapshot,
+        deliveryNoteSnapshot: deliveryNote,
+        ...(orderType === "SUBSCRIPTION" && calc.resolvedPlan
+          ? {
+              planId: calc.resolvedPlan.id,
+              planSlug: calc.resolvedPlan.slug,
+              planTitle: calc.resolvedPlan.title,
+              billingCycle: calc.resolvedPlan.billingCycle,
+              deliveriesCount: calc.resolvedPlan.deliveriesCount,
+              weightGrams: calc.totalGrams,
+              productVariantId: String(body.productVariantId || ""),
+              defaultFlowersSnapshot:
+                calc.resolvedFlowerSummary ||
+                calc.resolvedPlan.mixedPredefinedBreakdown,
+            }
+          : {
+              cartItemsJson: JSON.stringify(
+                Array.isArray(body.cartItems) ? body.cartItems.slice(0, 1) : []
+              ),
+              flowerSummarySnapshot:
+                calc.resolvedFlowerSummary || "100g Add-On Flowers",
+              totalGramsSnapshot: calc.totalGrams,
+            }),
       },
-      { status: 500 }
-    );
+    });
+
+    logger.info({
+      module: "RAZORPAY",
+      action: "PAYMENT_INTENT_LOCKED",
+      traceId,
+      durationMs: getElapsed(),
+      message: `Locked Payment row for Razorpay order ${rzpData.id} (₹${calc.amountInRupees})`,
+    });
+
+    return NextResponse.json({
+      success: true,
+      traceId,
+      paymentMode: "RAZORPAY_LIVE",
+      razorpayKeyId: env.RAZORPAY_KEY_ID,
+      razorpayOrderId: String(rzpData.id),
+      amountInRupees: calc.amountInRupees,
+      amountInPaise,
+    });
   } catch (err) {
     logger.error(
       {
@@ -233,9 +275,9 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         traceId,
-        error: "Server error while preparing your order.",
+        error: "Payment gateway connection timed out or failed. Please try again.",
       },
-      { status: 500 }
+      { status: 502 }
     );
   }
 }

@@ -401,7 +401,7 @@ function MyOrdersContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: resolvedLoginEmail,
+          email: resolvedLoginEmail || loginIdentifier.trim(),
           code: enteredOtp.trim(),
         }),
       });

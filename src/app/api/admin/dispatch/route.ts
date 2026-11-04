@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { getCurrentIstClock } from "@/features/orders/orders.service";
 import { sendAdminDispatchCsvEmail } from "@/lib/mailer";
-
+import { verifyAdminApiAuth } from "@/lib/admin-auth";
 export interface AdminDispatchSheetRow {
   orderId: string;
   customerName: string;
@@ -121,9 +121,14 @@ export async function buildDispatchSheetForDate(targetDate: string): Promise<{
     });
   }
 
-  const esc = (val: string | number) =>
-    `"${String(val ?? "").replace(/"/g, '""')}"`;
-
+  // Bug 10 Fix: Prevent Excel CSV Formula / DDE Injection (=, +, -, @, \t, \r)
+  const esc = (val: string | number) => {
+    let str = String(val ?? "").replace(/"/g, '""');
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    return `"${str}"`;
+  };
   const csvHeader = [
     "Order ID",
     "Delivery Date",
@@ -168,6 +173,8 @@ export async function buildDispatchSheetForDate(targetDate: string): Promise<{
 }
 
 export async function GET(req: NextRequest) {
+  const authError = await verifyAdminApiAuth();
+  if (authError) return authError;
   const traceId = createTraceId("ADM-DISPATCH");
   const getElapsed = startTimer();
 
@@ -225,6 +232,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await verifyAdminApiAuth();
+  if (authError) return authError;
   const traceId = createTraceId("ADM-CSV-MAIL");
   try {
     const body = await req.json().catch(() => ({}));

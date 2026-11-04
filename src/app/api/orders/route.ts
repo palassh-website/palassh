@@ -1,25 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const traceId = createTraceId("ORD-GET");
   const getElapsed = startTimer();
 
   try {
+    // Bug 2 Fix: Use verified HttpOnly JWT session as the ONLY authorization source.
+    // Query parameters (?email= or ?phone=) are strictly ignored.
     const session = await getActiveCustomerSession();
-    const { searchParams } = new URL(req.url);
-    const queryEmail = searchParams.get("email")?.trim().toLowerCase();
-    const queryPhone = searchParams
-      .get("phone")
-      ?.replace(/\D/g, "")
-      .slice(-10);
 
-    const lookupEmail = session?.email || queryEmail;
-    const lookupPhone = session?.phone || queryPhone;
-
-    if (!lookupEmail && !lookupPhone) {
+    if (!session?.customerId) {
       return NextResponse.json({
         success: true,
         authenticated: false,
@@ -29,12 +22,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const customer = await db.customer.findFirst({
+    const customer = await db.customer.findUnique({
       where: {
-        OR: [
-          ...(lookupEmail ? [{ email: lookupEmail }] : []),
-          ...(lookupPhone ? [{ phone: lookupPhone }] : []),
-        ],
+        id: session.customerId,
       },
       include: {
         subscriptions: {
@@ -53,7 +43,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!customer) {
+    if (!customer || !customer.isVerified) {
       return NextResponse.json({
         success: true,
         authenticated: false,
@@ -65,7 +55,6 @@ export async function GET(req: NextRequest) {
 
     const latestSub = customer.subscriptions[0] || null;
 
-    // Map scheduleDays to frontend calendarDays format so My-Orders Calendar works seamlessly
     const formattedSub = latestSub
       ? {
           id: latestSub.id,
@@ -118,9 +107,7 @@ export async function GET(req: NextRequest) {
       action: "FETCH_CUSTOMER_ORDERS_OK",
       traceId,
       durationMs: getElapsed(),
-      message: `Fetched orders for ${customer.email} (Sub: ${
-        formattedSub?.orderId || "NONE"
-      }, OneTime: ${formattedOneTime.length})`,
+      message: `Fetched orders for authenticated customer ${customer.id}`,
     });
 
     return NextResponse.json({

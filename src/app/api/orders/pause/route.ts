@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { mutateSubscriptionCalendarDay } from "@/features/orders/orders.service";
 
@@ -8,11 +8,26 @@ export async function POST(req: NextRequest) {
   const getElapsed = startTimer();
 
   try {
+    // Bug 3 Fix: Require valid authenticated customer session
+    const session = await getActiveCustomerSession();
+    if (!session?.customerId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Please verify your account via Email OTP to modify your delivery schedule.",
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const orderIdOrSubId = String(
       body.subscriptionId || body.orderId || ""
     ).trim();
-    const targetDateStr = String(body.dateStr || body.deliveryDate || "").trim();
+    const targetDateStr = String(
+      body.dateStr || body.deliveryDate || ""
+    ).trim();
     const action: "TOGGLE_PAUSE_OR_CANCEL" | "UPDATE_NOTE" =
       body.action === "UPDATE_NOTE"
         ? "UPDATE_NOTE"
@@ -22,31 +37,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "subscriptionId/orderId and target dateStr (YYYY-MM-DD) are required.",
+          error:
+            "subscriptionId/orderId and target dateStr (YYYY-MM-DD) are required.",
         },
         { status: 400 }
       );
     }
 
-    // Resolve Subscription by either internal cuid() or public orderId (e.g. PLS-SUB-849201)
-    const sub = await db.subscription.findFirst({
-      where: {
-        OR: [{ id: orderIdOrSubId }, { orderId: orderIdOrSubId }],
-      },
-    });
-
-    if (!sub) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Subscription ${orderIdOrSubId} not found in database.`,
-        },
-        { status: 404 }
-      );
-    }
-
     const result = await mutateSubscriptionCalendarDay({
-      subscriptionId: sub.id,
+      customerId: session.customerId,
+      subscriptionIdOrOrderId: orderIdOrSubId,
       targetDateStr,
       action,
       orderNote: body.orderNote,

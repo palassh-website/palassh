@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-
+import { verifyAdminApiAuth } from "@/lib/admin-auth";
 interface StoreSettings {
   normalPurchaseAllowed: boolean;
 }
@@ -9,10 +9,14 @@ let currentSettings: StoreSettings = {
 };
 
 export async function GET() {
+  const authError = await verifyAdminApiAuth();
+  if (authError) return authError;
   return NextResponse.json(currentSettings);
 }
 
 export async function POST(req: Request) {
+  const authError = await verifyAdminApiAuth();
+  if (authError) return authError;
   try {
     const body = await req.json();
     if (typeof body.normalPurchaseAllowed === "boolean") {

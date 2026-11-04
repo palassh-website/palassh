@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { db } from "@/lib/db";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { maskEmailAddress, sendPalasshOtpEmail } from "@/lib/mailer";
@@ -16,13 +17,13 @@ export async function POST(req: NextRequest) {
     let targetPhone = "";
 
     if (purpose === "LOGIN_SYNC") {
-      // User can enter EITHER 10-digit Phone OR Email to log in from another device
       const rawIdentifier = String(body.identifier || "").trim();
       if (!rawIdentifier) {
         return NextResponse.json(
           {
             success: false,
-            error: "Please enter your registered 10-digit mobile number or email address.",
+            error:
+              "Please enter your registered 10-digit mobile number or email address.",
           },
           { status: 400 }
         );
@@ -59,7 +60,6 @@ export async function POST(req: NextRequest) {
       targetEmail = customer.email.toLowerCase();
       targetPhone = customer.phone;
     } else {
-      // CHECKOUT_VERIFY: Takes both email and 10-digit phone to verify & link them
       targetEmail = String(body.email || "")
         .trim()
         .toLowerCase();
@@ -71,15 +71,73 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "Please provide a valid email address and 10-digit WhatsApp mobile number.",
+            error:
+              "Please provide a valid email address and 10-digit WhatsApp mobile number.",
           },
           { status: 400 }
         );
       }
+
+      // Prevent linking a phone number that already belongs to another verified email account
+      const [existingByEmail, existingByPhone] = await Promise.all([
+        db.customer.findUnique({ where: { email: targetEmail } }),
+        db.customer.findUnique({ where: { phone: targetPhone } }),
+      ]);
+
+      if (
+        existingByPhone &&
+        existingByPhone.email.toLowerCase() !== targetEmail
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "This mobile number is already registered with another email address. Please use your registered email.",
+          },
+          { status: 409 }
+        );
+      }
+
+      if (
+        existingByEmail &&
+        existingByEmail.isVerified &&
+        existingByEmail.phone &&
+        !existingByEmail.phone.startsWith("UNLINKED-") &&
+        existingByEmail.phone !== targetPhone
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "This email address is already linked to another mobile number.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
-    // Generate cryptographically random 6-digit OTP
-    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    // Bug Fix: Enforce 60-second cooldown per email to prevent SMTP bombing
+    const recentOtp = await db.otpVerification.findFirst({
+      where: {
+        email: targetEmail,
+        createdAt: { gte: new Date(Date.now() - 60 * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (recentOtp) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Please wait 60 seconds before requesting another verification code.",
+        },
+        { status: 429 }
+      );
+    }
+
+    // Bug Fix: Cryptographically secure 6-digit OTP via CSPRNG
+    const otpCode = String(crypto.randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
 
     // Invalidate older unused OTPs for this email
@@ -88,18 +146,17 @@ export async function POST(req: NextRequest) {
       data: { isUsed: true },
     });
 
-    // Store fresh OTP in Hostinger MySQL
+    // Store fresh OTP in MySQL with attempt counter initialized at :0 inside purpose
     await db.otpVerification.create({
       data: {
         email: targetEmail,
         phone: targetPhone,
         code: otpCode,
-        purpose,
+        purpose: `${purpose}:0`,
         expiresAt,
       },
     });
 
-    // Send OTP strictly via Email (SMTP)
     const mailResult = await sendPalasshOtpEmail({
       toEmail: targetEmail,
       otpCode,
@@ -125,19 +182,24 @@ export async function POST(req: NextRequest) {
       action: "SEND_OTP_SUCCESS",
       traceId,
       durationMs: getElapsed(),
-      message: `OTP generated and sent to ${targetEmail} (Linked Phone: ${targetPhone})`,
+      message: `OTP generated and sent to ${maskEmailAddress(targetEmail)}`,
       meta: { purpose, devFallback: mailResult.devFallbackShown },
     });
 
+    // Bug Fix: Never leak unmasked `email` or `phone` in LOGIN_SYNC response
     return NextResponse.json({
       success: true,
       traceId,
       maskedEmail: maskEmailAddress(targetEmail),
-      email: targetEmail,
-      phone: targetPhone,
-      // Only include devOtpHint if SMTP_USER is not configured yet in local dev
-      ...(mailResult.devFallbackShown ? { devOtpHint: otpCode } : {}),
-      message: `6-digit verification code sent to ${maskEmailAddress(targetEmail)}`,
+      ...(purpose === "CHECKOUT_VERIFY"
+        ? { email: targetEmail, phone: targetPhone }
+        : {}),
+      ...(mailResult.devFallbackShown && process.env.NODE_ENV !== "production"
+        ? { devOtpHint: otpCode }
+        : {}),
+      message: `6-digit verification code sent to ${maskEmailAddress(
+        targetEmail
+      )}`,
     });
   } catch (err) {
     logger.error(
@@ -154,7 +216,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         traceId,
-        error: "Database or server error while generating OTP. Check terminal logs.",
+        error: "Database or server error while generating OTP.",
       },
       { status: 500 }
     );
