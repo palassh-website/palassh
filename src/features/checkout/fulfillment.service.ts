@@ -30,6 +30,8 @@ import { buildSubscriptionScheduleRows } from "@/features/checkout/checkout.serv
  *    wins and the loser gets the winner's order back (ALREADY_FULFILLED).
  */
 
+const FULFILLMENT_TX_OPTIONS = { maxWait: 15_000, timeout: 45_000 } as const;
+
 export type ExistingFulfilledOrder =
   | {
       orderType: "SUBSCRIPTION";
@@ -299,7 +301,7 @@ export async function fulfillPaidPayment(params: {
             razorpayPaymentId,
           },
         });
-      });
+      }, FULFILLMENT_TX_OPTIONS);
     } catch (err) {
       if (err instanceof DuplicateAddonError) {
         const refunded = await refundUnfulfillablePayment({
@@ -461,11 +463,13 @@ export async function fulfillPaidPayment(params: {
         deliveryNote: finalDeliveryNote,
         razorpayOrderId,
         razorpayPaymentId,
-        scheduleDays: { create: scheduleRows },
+        // One bulk INSERT for all delivery days instead of one query per day:
+        // fewer round trips to the remote database inside the transaction.
+        scheduleDays: { createMany: { data: scheduleRows } },
       },
       include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
     });
-  });
+  }, FULFILLMENT_TX_OPTIONS);
 
   if (!createdSubscription) return alreadyFulfilled();
 

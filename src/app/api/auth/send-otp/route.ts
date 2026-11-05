@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { maskEmailAddress, sendPalasshOtpEmail } from "@/lib/mailer";
 
+// Remote database round trips are slow; allow up to 60 s so work is not cut off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("OTP-SEND");
   const getElapsed = startTimer();

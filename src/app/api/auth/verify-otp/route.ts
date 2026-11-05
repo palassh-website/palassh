@@ -13,6 +13,9 @@ function timingSafeCodeMatch(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+// Remote database round trips are slow; allow up to 60 s so work is not cut off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("OTP-VERIFY");
   const getElapsed = startTimer();

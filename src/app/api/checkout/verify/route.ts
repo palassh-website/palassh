@@ -44,6 +44,9 @@ function verifyRazorpayHmacTimingSafe(params: {
   return crypto.timingSafeEqual(expectedBuf, receivedBuf);
 }
 
+// Remote database round trips are slow; allow up to 60 s so work is not cut off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("CHK-VERIFY");
   const getElapsed = startTimer();

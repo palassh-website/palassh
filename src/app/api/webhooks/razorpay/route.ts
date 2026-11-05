@@ -30,6 +30,9 @@ function verifyWebhookSignatureTimingSafe(
   return crypto.timingSafeEqual(expectedBuf, receivedBuf);
 }
 
+// Remote database round trips are slow; allow up to 60 s so work is not cut off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("RZP-WEBHOOK");
   const getElapsed = startTimer();
@@ -105,11 +108,29 @@ export async function POST(req: NextRequest) {
     });
 
     if (!paymentConfigRow?.jsonPayload) {
+      // create-order stamps every Razorpay order it makes with notes.customerId.
+      // A payment carrying that stamp IS ours, so a missing snapshot is a real
+      // problem (for example a failed database read). Answer 500 so Razorpay
+      // retries instead of us silently dropping a paid order.
+      const isOurPayment = Boolean(paymentEntity?.notes?.customerId);
+      if (isOurPayment) {
+        logger.error({
+          module: "RAZORPAY",
+          action: "WEBHOOK_SNAPSHOT_MISSING_FOR_OUR_PAYMENT",
+          traceId,
+          message: `Captured payment ${razorpayPaymentId} for ${razorpayOrderId} was created by this checkout but its snapshot could not be read. Returning 500 so Razorpay retries.`,
+        });
+        return NextResponse.json(
+          { success: false, error: "Order snapshot not readable yet" },
+          { status: 500 }
+        );
+      }
+
       logger.warn({
         module: "RAZORPAY",
         action: "WEBHOOK_SNAPSHOT_NOT_FOUND",
         traceId,
-        message: `Captured payment ${razorpayPaymentId} for ${razorpayOrderId} has no stored order snapshot; ignoring (not created by this checkout).`,
+        message: `Captured payment ${razorpayPaymentId} for ${razorpayOrderId} has no stored order snapshot and no checkout stamp; ignoring (not created by this checkout).`,
       });
       return NextResponse.json({
         success: true,

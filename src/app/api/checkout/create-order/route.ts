@@ -9,6 +9,9 @@ import {
   getPaymentOrderConfigKey,
 } from "@/lib/payment-snapshot";
 
+// Remote database round trips are slow; allow up to 60 s so work is not cut off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("CHK-CREATE");
   const getElapsed = startTimer();
@@ -244,14 +247,26 @@ export async function POST(req: NextRequest) {
     };
 
     // 5. Persist Immutable Pending Payment Snapshot in MySQL StoreConfig (Primary Key locked)
-    await db.storeConfig.upsert({
-      where: { configKey: getPaymentOrderConfigKey(razorpayOrderId) },
-      update: { jsonPayload: JSON.stringify(snapshot) },
-      create: {
-        configKey: getPaymentOrderConfigKey(razorpayOrderId),
-        jsonPayload: JSON.stringify(snapshot),
-      },
-    });
+    // Immediately persist customer's latest name & address in MySQL so it is never stuck on "PALASSH Devotee"
+    if (
+      (fullName && fullName !== customer.fullName) ||
+      (flatWing && flatWing !== customer.flatWing) ||
+      (societyName && societyName !== customer.societyName) ||
+      (pincode && pincode !== customer.pincode)
+    ) {
+      await db.customer
+        .update({
+          where: { id: customer.id },
+          data: {
+            ...(fullName ? { fullName: effectiveFullName } : {}),
+            ...(flatWing ? { flatWing: effectiveFlatWing } : {}),
+            ...(societyName ? { societyName: effectiveSociety } : {}),
+            ...(pincode ? { pincode } : {}),
+            deliveryNote,
+          },
+        })
+        .catch(() => undefined);
+    }
 
     logger.info({
       module: "RAZORPAY",

@@ -235,7 +235,7 @@ export async function mutateSubscriptionCalendarDay(params: {
           where: { id: sub.id },
           include: { scheduleDays: { orderBy: { dayNumber: "asc" } } },
         });
-      });
+      }, { maxWait: 15_000, timeout: 60_000 });
 
       return {
         success: true,
@@ -332,7 +332,7 @@ export async function mutateSubscriptionCalendarDay(params: {
         carryForwardDateStr: "",
         subscription: refreshed,
       };
-    });
+    }, { maxWait: 15_000, timeout: 60_000 });
 
     if (txOutcome.mode === "PAUSED_CARRIED_FORWARD") {
       return {
