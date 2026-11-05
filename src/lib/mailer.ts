@@ -51,7 +51,7 @@ export async function sendPalasshOtpEmail(params: {
 
     const htmlBody = `
       <div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; background: #FAF6F0; border: 1px solid #E6DEC8; border-radius: 20px; overflow: hidden;">
-        <div style="background: #1C1917; padding: 20px 24px; text-align: center; border-bottom: 3px solid #D95326;">
+        <div style="background: #1C1917; padding: 20px 24px; text-align: center; border-bottom: 3px solid #D95326;">  
           <h1 style="margin: 6px 0 0; color: #FFFFFF; font-size: 24px; letter-spacing: 3px;">PALASSH</h1>
           <p style="margin: 2px 0 0; color: #F5D0A9; font-style: italic; font-size: 12px;">flowers that pray with you</p>
         </div>
@@ -78,6 +78,7 @@ export async function sendPalasshOtpEmail(params: {
 
     await transporter.sendMail({
       from: env.SMTP_FROM || `"PALASSH Flowers" <${env.SMTP_USER}>`,
+      replyTo: "care@palassh.com",
       to: params.toEmail,
       subject,
       html: htmlBody,

@@ -53,7 +53,7 @@ export function getEnvConfig() {
     SMTP_PASS: cleanEnvValue(process.env.SMTP_PASS),
     SMTP_FROM: cleanEnvValue(
       process.env.SMTP_FROM,
-      "PALASSH Flowers <care@palassh.com>"
+      "PALASSH Flowers <no-reply@palassh.com>"
     ),
 
     RAZORPAY_KEY_ID: cleanEnvValue(

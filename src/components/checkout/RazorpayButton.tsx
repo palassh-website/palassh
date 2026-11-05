@@ -97,8 +97,11 @@ export function RazorpayButton({
       // 3. Open Razorpay Standard Checkout Modal
       const razorpayKey =
         orderData.key_id ||
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-        "rzp_test_Tuuzgr0wvYWHqj";
+        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+      if (!razorpayKey) {
+        throw new Error("Razorpay Key ID is not configured on the client.");
+      }
 
       const options = {
         key: razorpayKey,
