@@ -131,18 +131,23 @@ export async function POST(req: NextRequest) {
     }
 
     const activeSub = customer.subscriptions[0] || null;
-    const resolvedTier: "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY" = activeSub
-      ? activeSub.totalDeliveries >= 15 || activeSub.billingCycle === "month"
-        ? "MONTHLY"
-        : activeSub.totalDeliveries >= 7 || activeSub.billingCycle === "week"
-        ? "WEEKLY"
-        : "ONE_DAY"
-      : "NORMAL";
-
     const activeSubScheduledDates = activeSub
       ? activeSub.scheduleDays.map((d) => d.deliveryDate)
       : [];
 
+    // Ensure subscription still has at least 1 upcoming scheduled delivery date
+    const hasUpcomingDeliveries = activeSubScheduledDates.some(
+      (dateStr) => dateStr >= deliveryDate || dateStr >= new Date().toISOString().slice(0, 10)
+    );
+
+    const resolvedTier: "NORMAL" | "ONE_DAY" | "WEEKLY" | "MONTHLY" =
+      activeSub && hasUpcomingDeliveries
+        ? activeSub.totalDeliveries >= 15 || activeSub.billingCycle === "month"
+          ? "MONTHLY"
+          : activeSub.totalDeliveries >= 7 || activeSub.billingCycle === "week"
+          ? "WEEKLY"
+          : "ONE_DAY"
+        : "NORMAL";
     // 3. Authoritative Server-Side Price & Eligibility Calculation
     const requestedWeight = Number(body.weightGrams) || 100;
     const calc = await validateAndCalculateOrderServerSide({

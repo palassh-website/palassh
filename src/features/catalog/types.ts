@@ -1,4 +1,4 @@
-export interface FlowerProduct {
+﻿export interface FlowerProduct {
   id: string;
   slug: string;
   name: string;
@@ -866,20 +866,40 @@ export function getCurrentCustomerTier(): CustomerTier {
     if (savedSub) {
       const parsed = JSON.parse(savedSub);
       if (parsed && parsed.orderId && parsed.status === "ACTIVE") {
-        if (Number(parsed.remainingDeliveries) <= 0) {
-          return "NORMAL";
-        }
+        // Use IST YYYY-MM-DD (not UTC toISOString)
+        const istParts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          hour12: false,
+        }).formatToParts(new Date());
+        const getP = (t: string) =>
+          istParts.find((p) => p.type === t)?.value || "00";
+        const todayIst = `${getP("year")}-${getP("month")}-${getP("day")}`;
+        const currentHourIst = Number(getP("hour")) % 24;
+
         if (
           Array.isArray(parsed.calendarDays) &&
           parsed.calendarDays.length > 0
         ) {
-          const today = new Date().toISOString().split("T")[0];
-          const lastDate =
-            parsed.calendarDays[parsed.calendarDays.length - 1]?.dateStr;
-          if (lastDate && lastDate < today) {
+          // Count how many SCHEDULED deliveries remain (including today if before 8 AM)
+          const activeScheduledRemaining = parsed.calendarDays.filter(
+            (d: { dateStr?: string; status?: string }) =>
+              d.status === "SCHEDULED" &&
+              d.dateStr &&
+              (d.dateStr > todayIst ||
+                (d.dateStr === todayIst && currentHourIst < 8))
+          ).length;
+
+          if (activeScheduledRemaining <= 0) {
             return "NORMAL";
           }
+        } else if (Number(parsed.remainingDeliveries) <= 0) {
+          return "NORMAL";
         }
+
         if (
           parsed.planId === "plan-monthly" ||
           parsed.billingCycle === "month" ||

@@ -52,7 +52,7 @@ export default function AboutUsPage() {
             <div className="pointer-events-none absolute -top-24 -right-20 h-80 w-80 rounded-full bg-[#D95326]/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-[#F5D0A9]/10 blur-3xl" />
 
-            <div className="relative z-10 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
+            <div className="relative z-10 grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-12 lg:items-center">
               <div className="lg:col-span-7 space-y-5">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#F5D0A9]/30 bg-white/10 px-4 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#F5D0A9] backdrop-blur-xs">
                   <Sparkles className="h-3.5 w-3.5 text-[#D95326]" />
@@ -62,32 +62,41 @@ export default function AboutUsPage() {
                 <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.1]">
                   PALASSH:{" "}
                   <span className="block mt-1 text-[#F5D0A9] italic font-normal font-serif">
-                   The Founder's Story To Start Palassh
+                    The Founder&apos;s Story To Start Palassh
                   </span>
                 </h1>
 
-                <p className="text-xs sm:text-base lg:text-lg text-stone-300 leading-relaxed max-w-2xl">
-                
-
-We are engineers by profession. Logic, circuits, and plannings were our world. But flowers were always our heart.
-
-What started as a hobby, watering a few plants on our balcony, slowly became a passion.<p></p> The Peace, the Prayer, the Purity that a flower brings we couldn’t find it anywhere else.
-
-And then came Reeva.
-<p></p>
-Our baby girl. Since she was a few months old, she had only one true love flowers. She would light up, smile, and hold a single flower like it was the whole world. Watching her love for flowers inspired us to take the leap we were always scared to take.
-<p></p>
-That’s how PALASSH was born.
-
-Reeva is another name for the holy Narmada River. And Palassh, the flame of the forest is the flower that blooms beautifully on the banks of Narmada. For us, it felt like a circle was complete.
-
-Reeva, Narmada, Palash. Our daughter, our roots, and our passion.
-<p></p>
-Palassh is not just a flower business for us. It is our family’s prayer, made of flowers.
-
-Welcome to Palassh.
-Flowers that pray with you.
-                </p>
+                <div className="space-y-3 text-xs sm:text-base lg:text-lg text-stone-300 leading-relaxed max-w-2xl">
+                  <p>
+                    We are engineers by profession. Logic, circuits, and
+                    plannings were our world. But flowers were always our heart.
+                    What started as a hobby, watering a few plants on our
+                    balcony, slowly became a passion.
+                  </p>
+                  <p>
+                    The Peace, the Prayer, the Purity that a flower brings we
+                    couldn’t find it anywhere else. And then came Reeva.
+                  </p>
+                  <p>
+                    Our baby girl. Since she was a few months old, she had only
+                    one true love flowers. She would light up, smile, and hold a
+                    single flower like it was the whole world. Watching her love
+                    for flowers inspired us to take the leap we were always
+                    scared to take.
+                  </p>
+                  <p>
+                    That’s how PALASSH was born. Reeva is another name for the
+                    holy Narmada River. And Palassh, the flame of the forest is
+                    the flower that blooms beautifully on the banks of Narmada.
+                    For us, it felt like a circle was complete. Reeva, Narmada,
+                    Palash. Our daughter, our roots, and our passion.
+                  </p>
+                  <p className="text-stone-200 font-medium">
+                    Palassh is not just a flower business for us. It is our
+                    family’s prayer, made of flowers. Welcome to Palassh.
+                    Flowers that pray with you.
+                  </p>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <Link
@@ -106,26 +115,25 @@ Flowers that pray with you.
                 </div>
               </div>
 
-              {/* Right Showcase Image Card */}
-              <div className="lg:col-span-5">
-                <div className="relative mx-auto max-w-sm overflow-hidden rounded-3xl border-4 border-white/15 bg-stone-900 shadow-2xl aspect-[4/3]">
-                  <img
-                    src="/images/founder.webp"
-                    alt="PALASSH Sacred Morning Blooms"
-                    width={600}
-                    height={450}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1C1917] via-transparent to-transparent" />
-                  <div className="absolute bottom-3.5 left-3.5 right-3.5 rounded-2xl border border-white/15 bg-black/65 p-3.5 backdrop-blur-md">
-                    <p className="font-serif text-sm font-bold text-[#F5D0A9]">
+              {/* Right Showcase Image Card (Fixed: Added lg:col-span-5 + non-cropping portrait layout) */}
+              <div className="lg:col-span-5 w-full max-w-md mx-auto lg:max-w-none">
+                <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-stone-700/80 bg-[#141210] shadow-2xl">
+                  <div className="relative aspect-4/4 sm:aspect-4/3 lg:aspect-4/4 w-full overflow-hidden bg-stone-900">
+                    <img
+                      src="/images/founder.webp"
+                      alt="The Heads Behind Palassh - Mrs. Ankita Jagtap & Mr. Pratik Jagtap"
+                      loading="eager"
+                      decoding="async"
+                      className="h-full w-full object-cover object-top"
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#141210] to-transparent" />
+                  </div>
+                  <div className="border-t border-white/10 bg-[#141210] px-4 py-3.5 sm:px-5 sm:py-4">
+                    <p className="font-serif text-sm sm:text-lg font-bold text-[#F5D0A9] leading-snug">
                       The Heads Behind Palassh
                     </p>
-                    <p className="text-[11px] text-stone-200">
-                      Mrs .Ankita Jagtap  &  Mr. Pratik Jagtap 
-
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-stone-300">
+                      Mrs. Ankita Jagtap &amp; Mr. Pratik Jagtap
                     </p>
                   </div>
                 </div>

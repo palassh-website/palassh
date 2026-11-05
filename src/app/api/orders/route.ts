@@ -63,24 +63,24 @@ export async function GET() {
 
     if (latestSub) {
       const scheduleDays = latestSub.scheduleDays || [];
-      const lastDeliveryDate =
-        scheduleDays[scheduleDays.length - 1]?.deliveryDate ||
-        latestSub.startDate;
 
-      const isPastPlanDeliveries = Boolean(
-        lastDeliveryDate && lastDeliveryDate < todayIst
-      );
-      const isZeroRemaining = latestSub.remainingDeliveries <= 0;
+      // Count SCHEDULED days that are either in the future (> todayIst)
+      // OR today if the 6:00 AM - 8:00 AM morning delivery window hasn't finished yet (currentHourIst < 8)
+      const liveRemainingCount = scheduleDays.filter(
+        (d) =>
+          d.status === "SCHEDULED" &&
+          (d.deliveryDate > todayIst ||
+            (d.deliveryDate === todayIst && clock.currentHourIst < 8))
+      ).length;
+
       const isEnded =
-        latestSub.status !== "ACTIVE" ||
-        isPastPlanDeliveries ||
-        isZeroRemaining;
+        latestSub.status !== "ACTIVE" || liveRemainingCount <= 0;
 
       if (isEnded) {
-        if (latestSub.status === "ACTIVE") {
+        if (latestSub.status === "ACTIVE" || latestSub.remainingDeliveries !== 0) {
           await db.subscription.update({
             where: { id: latestSub.id },
-            data: { status: "COMPLETED" },
+            data: { status: "COMPLETED", remainingDeliveries: 0 },
           });
         }
         if (customer.activeTier !== "NORMAL") {
@@ -91,6 +91,14 @@ export async function GET() {
           effectiveTier = "NORMAL";
         }
       } else {
+        // Keep DB remainingDeliveries synced in real time even if midnight cron didn't run
+        if (latestSub.remainingDeliveries !== liveRemainingCount) {
+          await db.subscription.update({
+            where: { id: latestSub.id },
+            data: { remainingDeliveries: liveRemainingCount },
+          });
+        }
+
         formattedSub = {
           id: latestSub.id,
           orderId: latestSub.orderId,
@@ -99,7 +107,7 @@ export async function GET() {
           pricePaid: latestSub.pricePaid,
           billingCycle: latestSub.billingCycle,
           totalDeliveries: latestSub.totalDeliveries,
-          remainingDeliveries: latestSub.remainingDeliveries,
+          remainingDeliveries: liveRemainingCount,
           maxPausesAllowed: latestSub.maxPausesAllowed,
           pausesUsedCount: latestSub.pausesUsedCount,
           status: latestSub.status,

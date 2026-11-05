@@ -129,6 +129,10 @@ export default function AdminDashboardPage() {
         `/api/admin/dispatch?date=${encodeURIComponent(targetDate)}`,
         { cache: "no-store" }
       );
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = "/admin/login";
+        return;
+      }
       const data = await res.json();
       if (data?.success && Array.isArray(data.dispatchRows)) {
         setDispatchRows(data.dispatchRows);

@@ -394,7 +394,7 @@ export function Navbar() {
                       ₹{totalCartAmount.toLocaleString("en-IN")}
                     </span>
                   </div>
-                  {customerTier === "NORMAL" ? (
+                  {customerTier !== "WEEKLY" && customerTier !== "MONTHLY" ? (
                     <div className="space-y-2">
                       <div className="rounded-xl border border-[#E6DEC8] bg-[#FFF3EC] p-3 text-xs text-stone-800">
                         <p className="font-bold flex items-center gap-1.5 text-[#D95326]">

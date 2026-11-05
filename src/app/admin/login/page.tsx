@@ -8,7 +8,7 @@ import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@palassh.in");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
       const data = await res.json().catch(() => ({}));
       setError(
         data.error ||
-          "Invalid admin credentials. Please check your password and try again."
+          "Invalid admin credentials. Please check your email or password and try again."
       );
     } catch {
       setError("Network error while connecting to PALASSH auth server.");
@@ -81,6 +81,7 @@ export default function AdminLoginPage() {
                 <input
                   type="email"
                   required
+                  placeholder="Enter admin email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 focus:border-[#E8502B] focus:outline-none"
