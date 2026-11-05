@@ -126,6 +126,10 @@ function CheckoutContent() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [formError, setFormError] = useState("");
+  // Set the moment Razorpay reports a successful payment. While set, the Pay
+  // buttons stay locked so a customer who has already paid can never pay twice.
+  const [paidPaymentId, setPaidPaymentId] = useState<string | null>(null);
+  const isPayLocked = isProcessing || paidPaymentId !== null;
   const errorRef = useRef<HTMLDivElement | null>(null);
   const [customerTier, setCustomerTier] = useState("NORMAL");
 
@@ -367,30 +371,71 @@ function CheckoutContent() {
     razorpayPaymentId: string;
     razorpaySignature: string;
   }) => {
+    // Money has been taken. Lock the Pay buttons until this resolves (and keep
+    // them locked on failure) so the customer can never be charged twice.
+    setPaidPaymentId(paymentPayload.razorpayPaymentId);
+
     const deliveryInstruction =
       formData.deliveryNote.trim() ||
       "Hang pouch on main door handle (Do not ring bell)";
 
-    const verifyRes = await fetch("/api/checkout/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderType: isOneTimeCartCheckout ? "ONE_TIME" : "SUBSCRIPTION",
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        fullName: formData.fullName.trim(),
-        flatWing: formData.flatWing.trim(),
-        societyName: formData.societyName.trim(),
-        pincode: formData.pincode.trim(),
-        startDate: formData.startDate,
-        deliveryNote: deliveryInstruction,
-        ...paymentPayload,
-      }),
+    const requestBody = JSON.stringify({
+      orderType: isOneTimeCartCheckout ? "ONE_TIME" : "SUBSCRIPTION",
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      fullName: formData.fullName.trim(),
+      flatWing: formData.flatWing.trim(),
+      societyName: formData.societyName.trim(),
+      pincode: formData.pincode.trim(),
+      startDate: formData.startDate,
+      deliveryNote: deliveryInstruction,
+      ...paymentPayload,
     });
 
-    const verifyData = await verifyRes.json();
-    if (!verifyRes.ok || !verifyData.success) {
-      setFormError(verifyData.error || "Failed to confirm order in database.");
+    // The verify endpoint is idempotent, so retrying after a temporary failure
+    // is safe: it can never create the order twice.
+    const MAX_VERIFY_ATTEMPTS = 3;
+    const RETRY_DELAYS_MS = [1500, 4000];
+    let verifyData: any = null;
+    let failureMessage = "";
+
+    for (let attempt = 1; attempt <= MAX_VERIFY_ATTEMPTS; attempt++) {
+      try {
+        const verifyRes = await fetch("/api/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        });
+        const data = await verifyRes.json();
+
+        if (verifyRes.ok && data.success) {
+          verifyData = data;
+          break;
+        }
+
+        failureMessage = data.error || "Failed to confirm order in database.";
+        // A clear answer from the server (4xx) will not change on retry.
+        const isTemporary = verifyRes.status >= 500 || verifyRes.status === 429;
+        if (!isTemporary) break;
+      } catch {
+        // Network drop, or a non-JSON error page: treat as temporary.
+        failureMessage = "Network problem while confirming your order.";
+      }
+
+      if (attempt < MAX_VERIFY_ATTEMPTS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1])
+        );
+      }
+    }
+
+    if (!verifyData) {
+      const idNote = failureMessage.includes(paymentPayload.razorpayPaymentId)
+        ? ""
+        : ` Payment ID: ${paymentPayload.razorpayPaymentId}.`;
+      setFormError(
+        `Payment received, but we could not confirm your order yet. ${failureMessage}${idNote} Please do NOT pay again. Check My Orders in a few minutes, or contact support on +91 91670 34671 with your Payment ID.`
+      );
       setIsProcessing(false);
       return;
     }
@@ -485,6 +530,8 @@ function CheckoutContent() {
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Never start a second payment while one is in progress or already paid.
+    if (isPayLocked) return;
     setFormError("");
 
     if (
@@ -1072,13 +1119,15 @@ function CheckoutContent() {
                 <div className="pt-3 border-t border-stone-200 space-y-4">
                   <button
                     type="submit"
-                    disabled={isProcessing}
+                    disabled={isPayLocked}
                     className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] py-4 px-6 text-sm sm:text-base font-bold text-white shadow-md transition cursor-pointer disabled:opacity-60"
                   >
                     <Lock className="h-4 w-4" />
                     <span suppressHydrationWarning>
                       {isProcessing
                         ? "Processing Order..."
+                        : paidPaymentId
+                        ? "Payment Received — Do Not Pay Again"
                         : `Pay ₹${payableAmount.toLocaleString(
                             "en-IN"
                           )} & Schedule 6–8 AM Delivery`}
@@ -1171,7 +1220,7 @@ function CheckoutContent() {
 
               <button
                 type="button"
-                disabled={isProcessing}
+                disabled={isPayLocked}
                 onClick={() => {
                   const formEl = document.querySelector("form");
                   if (formEl) formEl.requestSubmit();
@@ -1182,6 +1231,8 @@ function CheckoutContent() {
                 <span suppressHydrationWarning>
                   {isProcessing
                     ? "Processing..."
+                    : paidPaymentId
+                    ? "Payment Received"
                     : `Pay ₹${payableAmount.toLocaleString("en-IN")} Now`}
                 </span>
               </button>

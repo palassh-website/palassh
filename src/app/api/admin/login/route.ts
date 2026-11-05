@@ -1,26 +1,34 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { getEnvConfig } from "@/lib/env";
+import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
+import {
+  clearFailures,
+  getLockoutSeconds,
+  recordFailure,
+} from "@/lib/login-rate-limit";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 
-export const ADMIN_SESSION_COOKIE = "palassh_admin_session";
+const RATE_LIMIT_SCOPE = "ADMIN_LOGIN";
 
 function getAdminSecretKey(): Uint8Array {
   const { JWT_SECRET } = getEnvConfig();
   return new TextEncoder().encode(JWT_SECRET);
 }
 
-export async function verifyAdminSessionCookie(): Promise<boolean> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
-    if (!token) return false;
-    const { payload } = await jwtVerify(token, getAdminSecretKey());
-    return payload.role === "PALASSH_ADMIN";
-  } catch {
-    return false;
-  }
+/** Constant-time string comparison (hashes first so lengths always match). */
+function safeEqual(a: string, b: string): boolean {
+  const hashA = crypto.createHash("sha256").update(a).digest();
+  const hashB = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 export async function POST(req: NextRequest) {
@@ -28,6 +36,27 @@ export async function POST(req: NextRequest) {
   const getElapsed = startTimer();
 
   try {
+    const clientIp = getClientIp(req);
+
+    // Locked-out callers are stopped before any credential is even compared.
+    const lockedSeconds = await getLockoutSeconds(RATE_LIMIT_SCOPE, clientIp);
+    if (lockedSeconds > 0) {
+      logger.warn({
+        module: "ADMIN_LOGIN",
+        action: "ADMIN_LOGIN_LOCKED_OUT",
+        traceId,
+        durationMs: getElapsed(),
+        message: `Blocked admin login attempt from a locked-out client (${lockedSeconds}s left).`,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many failed attempts. Please try again later.",
+        },
+        { status: 429, headers: { "Retry-After": String(lockedSeconds) } }
+      );
+    }
+
     const body = await req.json();
     const email = String(body.email || "")
       .trim()
@@ -38,13 +67,18 @@ export async function POST(req: NextRequest) {
     const expectedEmail = env.ADMIN_EMAIL.trim().toLowerCase();
     const expectedPassword = env.ADMIN_PASSWORD.trim();
 
-    if (email !== expectedEmail || password !== expectedPassword) {
+    // Evaluate both checks (no short-circuit) so timing doesn't reveal which was wrong.
+    const emailOk = safeEqual(email, expectedEmail);
+    const passwordOk = safeEqual(password, expectedPassword);
+
+    if (!(emailOk && passwordOk)) {
+      await recordFailure(RATE_LIMIT_SCOPE, clientIp);
       logger.warn({
         module: "ADMIN_LOGIN",
         action: "INVALID_ADMIN_CREDENTIALS",
         traceId,
         durationMs: getElapsed(),
-        message: `Failed admin login attempt for email: ${email}`,
+        message: "Failed admin login attempt.",
       });
       return NextResponse.json(
         {
@@ -54,6 +88,8 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    await clearFailures(RATE_LIMIT_SCOPE, clientIp);
 
     const token = await new SignJWT({
       email: expectedEmail,

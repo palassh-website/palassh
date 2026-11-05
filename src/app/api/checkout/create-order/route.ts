@@ -4,46 +4,10 @@ import { getEnvConfig } from "@/lib/env";
 import { getActiveCustomerSession } from "@/lib/auth";
 import { createTraceId, logger, startTimer } from "@/lib/logger";
 import { validateAndCalculateOrderServerSide } from "@/features/checkout/checkout.service";
-
-export interface LockedPaymentSnapshot {
-  razorpayOrderId: string;
-  customerId: string;
-  orderType: "SUBSCRIPTION" | "ONE_TIME";
-  status: "CREATED" | "PAID";
-  amountInRupees: number;
-  amountInPaise: number;
-  currency: "INR";
-  pincode: string;
-  deliveryDate: string;
-  fullNameSnapshot: string;
-  flatWingSnapshot: string;
-  societyNameSnapshot: string;
-  addressSnapshot: string;
-  deliveryNoteSnapshot: string;
-  planId?: string;
-  planSlug?: string;
-  planTitle?: string;
-  billingCycle?: string;
-  deliveriesCount?: number;
-  weightGrams?: number;
-  productVariantId?: string;
-  defaultFlowersSnapshot?: string;
-  cartItemsJson?: string;
-  flowerSummarySnapshot?: string;
-  totalGramsSnapshot?: number;
-  razorpayPaymentId?: string;
-  createdPublicOrderId?: string;
-  createdAt: string;
-  paidAt?: string;
-}
-
-export function getPaymentOrderConfigKey(razorpayOrderId: string): string {
-  return `PAY_INTENT_${razorpayOrderId}`;
-}
-
-export function getPaymentUsedConfigKey(razorpayPaymentId: string): string {
-  return `PAY_USED_${razorpayPaymentId}`;
-}
+import {
+  LockedPaymentSnapshot,
+  getPaymentOrderConfigKey,
+} from "@/lib/payment-snapshot";
 
 export async function POST(req: NextRequest) {
   const traceId = createTraceId("CHK-CREATE");

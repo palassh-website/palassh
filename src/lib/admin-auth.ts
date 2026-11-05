@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getEnvConfig } from "./env";
-import { ADMIN_SESSION_COOKIE } from "@/app/api/admin/login/route";
+import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
 
 function getAdminSecretKey(): Uint8Array {
   const { JWT_SECRET } = getEnvConfig();

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createTraceId } from "@/lib/logger";
 import { getCurrentIstClock } from "@/features/orders/orders.service";
-import { buildDispatchSheetForDate } from "../route";
+import { buildDispatchSheetForDate } from "@/features/dispatch/dispatch.service";
 import { sendAdminDispatchCsvEmail } from "@/lib/mailer";
 import { verifyCronApiAuth } from "@/lib/admin-auth";
 
