@@ -247,6 +247,15 @@ export async function POST(req: NextRequest) {
     };
 
     // 5. Persist Immutable Pending Payment Snapshot in MySQL StoreConfig (Primary Key locked)
+    await db.storeConfig.upsert({
+      where: { configKey: getPaymentOrderConfigKey(razorpayOrderId) },
+      update: { jsonPayload: JSON.stringify(snapshot) },
+      create: {
+        configKey: getPaymentOrderConfigKey(razorpayOrderId),
+        jsonPayload: JSON.stringify(snapshot),
+      },
+    });
+
     // Immediately persist customer's latest name & address in MySQL so it is never stuck on "PALASSH Devotee"
     if (
       (fullName && fullName !== customer.fullName) ||
