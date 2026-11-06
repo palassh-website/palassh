@@ -89,7 +89,7 @@ export default function AboutUsPage() {
                     holy Narmada River. And Palassh, the flame of the forest is
                     the flower that blooms beautifully on the banks of Narmada.
                     For us, it felt like a circle was complete. Reeva, Narmada,
-                    Palash. Our daughter, our roots, and our passion.
+                    Palassh. Our daughter, our roots, and our passion.
                   </p>
                   <p className="text-stone-200 font-medium">
                     Palassh is not just a flower business for us. It is our
