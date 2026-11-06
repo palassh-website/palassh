@@ -1,0 +1,286 @@
+# PALASSH Flowers — LLM Context & Agent Knowledge Base
+> Canonical file for AI coding agents and LLM tools to understand the complete architecture, domain model, APIs, workflows, and conventions of the PALASSH Flowers codebase.
+
+---
+
+## 1. Project Overview & Business Domain
+
+- **Brand**: PALASSH Flowers (`palassh.com`)
+- **Domain**: Direct-to-Consumer (D2C) sacred daily Puja Flower subscription and express floral delivery.
+- **Tagline**: *"Flowers that pray with you."* (पवित्र पूजा फुले)
+- **Primary Market**: Thane, Maharashtra, India.
+- **Serviceable Pincodes**: Strictly restricted to Thane city pincodes:
+  - `400601`: Thane West (Station, Gokhale Rd, Market)
+  - `400602`: Thane West (Naupada, Panchpakhadi)
+  - `400603`: Thane East (Kopri Colony)
+  - `400604`: Wagle Estate / Teen Hath Naka / Mulund Check Naka
+  - `400605`: Kalwa / Kharegaon (**PALASSH Main Hub**)
+  - `400606`: Vartak Nagar / Pokhran Road No. 1 & 2
+  - `400607`: Ghodbunder Road / Manpada / Chitalsar / Patlipada / Hiranandani Estate
+  - `400608`: Balkum / Kolshet Road / Dhokali
+- **Strict Delivery Window**: **6:00 AM – 8:00 AM** daily.
+- **Standard Doorstep Instruction**: *"Hang pouch on main door handle (Do not ring bell)"* — preserves morning silence and sanctity.
+- **Product Offerings**:
+  - **Subscriptions**: Daily fresh curated puja flower pouches (Marigold/Zendu, Shevanti, Gulab, Bel Patra, Durva, etc.). Durations: 1-Day Trial, Weekly (7 Days), Monthly (30 Days).
+  - **One-Time / Add-on Orders**: Direct purchase by weight (e.g. 100g, 150g, 250g, 500g) for festive or special occasions.
+
+---
+
+## 2. Tech Stack & Environment
+
+| Layer | Technology | Version / Details |
+|---|---|---|
+| **Framework** | Next.js (App Router) | `16.x` with React `19.x` |
+| **Language** | TypeScript | `6.x` in strict mode |
+| **Styling** | Tailwind CSS v4 | `@tailwindcss/postcss` (`4.x`), PostCSS (`8.x`) |
+| **Fonts** | Google Fonts | `Fraunces` (serif / display), `Inter Tight` (sans) |
+| **Database & ORM**| MySQL + Prisma ORM | Prisma Client `6.x`, connection pooled in `src/lib/db.ts` |
+| **Payments** | Razorpay Node SDK | `razorpay ^2.9.8`, INR currency, amounts in Paise |
+| **Authentication**| Custom OTP + JWT (jose) | Passwordless customer OTP; role-based admin JWT |
+| **Email/SMTP** | Nodemailer | Hostinger SMTP (`smtp.hostinger.com:465`) |
+| **Icons** | Lucide React | `lucide-react` |
+| **Validation** | Zod | `zod ^4.x` |
+| **Hosting** | Vercel Serverless | Configured with `vercel.json` and edge/maxDuration rules |
+
+---
+
+## 3. Directory Structure
+
+```text
+palassh-flowers/
+├── prisma/
+│   └── schema.prisma             # MySQL database schema & Prisma models
+├── public/
+│   ├── images/                   # Optimized flower images & banners (.webp)
+│   ├── favicon.ico
+│   └── llms.txt                  # Public-facing agent context (served at /llms.txt)
+├── scripts/
+│   └── validate-images.mjs       # Sharp-based image integrity validation tool
+├── src/
+│   ├── app/                      # Next.js 16 App Router
+│   │   ├── (storefront)/         # Customer-facing routes
+│   │   │   ├── page.tsx          # Homepage (Hero, Morning Ritual, Plans, Stats)
+│   │   │   ├── about/            # Story, sourcing, and purity promise
+│   │   │   ├── account/          # Customer profile & addresses
+│   │   │   ├── checkout/         # Pincode check, OTP auth, Razorpay payment
+│   │   │   ├── legal/[slug]/     # Terms, Privacy, Refund, Shipping policies
+│   │   │   ├── my-orders/        # Order tracker & subscription pause management
+│   │   │   ├── plans/[slug]/     # Specific subscription plan detail page
+│   │   │   └── products/         # One-time flower catalog
+│   │   ├── admin/                # Admin portal
+│   │   │   ├── login/            # Secure admin authentication
+│   │   │   └── page.tsx          # Dispatch dashboard, orders, inventory control
+│   │   ├── api/                  # Backend Route Handlers
+│   │   │   ├── account/          # Customer account management
+│   │   │   ├── admin/            # Catalog, dispatch, plans, store settings, login
+│   │   │   ├── auth/             # OTP send & verify
+│   │   │   ├── checkout/         # Razorpay order generation & client verification
+│   │   │   ├── orders/           # Customer orders & pause day management
+│   │   │   ├── pincode/          # Serviceability lookup
+│   │   │   └── webhooks/razorpay # Server-to-server webhook payment capture
+│   │   ├── error.tsx             # Global storefront error boundary
+│   │   ├── globals.css           # Tailwind v4 theme, fonts, custom utilities
+│   │   ├── layout.tsx            # Root layout with fonts, Navbar, Footer, Schema markup
+│   │   ├── not-found.tsx         # 404 page
+│   │   ├── robots.ts             # SEO robots.txt generator
+│   │   └── sitemap.ts            # Dynamic sitemap.xml generator
+│   ├── components/               # React UI components
+│   │   ├── checkout/             # Address forms, payment buttons, OTP modals
+│   │   ├── layout/               # Navbar, Footer
+│   │   ├── sections/             # MorningRitual, StatBar, Hero sections
+│   │   ├── shared/               # SplitText, ScrollReveal, CountUp, FeatureBoundary
+│   │   └── ui/                   # Reusable atomic UI elements
+│   ├── features/                 # Domain-driven feature modules
+│   │   ├── admin-panel/          # Admin state and controls
+│   │   ├── catalog/              # Product variants, pricing calculators, static data
+│   │   ├── checkout/             # Checkout validation & atomic order fulfillment
+│   │   ├── customer-orders/      # My orders view logic
+│   │   ├── dispatch/             # Daily morning delivery sheets & route planning
+│   │   ├── orders/               # Subscription schedule & pause operations
+│   │   └── pincode-checker/      # Thane pincode validation & slot resolution
+│   └── lib/                      # Core shared utilities & singletons
+│       ├── admin-auth.ts         # Admin cookie & cron bearer token validation
+│       ├── admin-session.ts      # Admin session constants
+│       ├── auth.ts               # Customer JWT token creation, verification & cookies
+│       ├── db.ts                 # Prisma Client singleton
+│       ├── env.ts                # Fail-closed environment configuration validator
+│       ├── logger.ts             # Structured logging with trace IDs and timers
+│       ├── login-rate-limit.ts   # In-memory / IP rate-limiting for auth
+│       ├── mailer.ts             # Nodemailer customer transaction emails
+│       ├── payment-snapshot.ts   # Locked payment snapshot schemas & state machines
+│       └── razorpay.ts           # Razorpay client & refund helpers
+├── AGENTS.md                     # Agent rules (Next.js 16 conventions)
+├── llms.txt                      # Project root LLM context file
+├── notes.txt                     # Active developer notes and SQL patch records
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## 4. Database Schema & Data Models
+
+Managed via Prisma (`prisma/schema.prisma`) targeting MySQL.
+
+### Key Models:
+1. **`Customer`**:
+   - `id`: CUID identifier
+   - `email`: Unique email (verified via OTP)
+   - `phone`: Unique 10-digit mobile number
+   - `fullName`, `flatWing`, `societyName`, `pincode`, `deliveryNote`
+   - `activeTier`: Enum `NORMAL` | `ONE_DAY` | `WEEKLY` | `MONTHLY`
+   - `isVerified`: Boolean OTP status flag
+   - Relations: `subscriptions`, `oneTimeOrders`
+
+2. **`OtpVerification`**:
+   - Used for passwordless checkout login.
+   - `email`, `phone`, `code` (6-digit), `purpose` (`CHECKOUT_VERIFY`), `expiresAt`, `isUsed`.
+
+3. **`Subscription`**:
+   - `orderId`: Unique public order code (e.g. `PAL-SUB-XXXXXX`)
+   - `customerId`: Foreign key to `Customer`
+   - `planId`, `planTitle`, `billingCycle` (`day`, `week`, `month`)
+   - `pricePaid` (in ₹), `totalDeliveries`, `remainingDeliveries`
+   - `maxPausesAllowed`, `pausesUsedCount`
+   - `startDate`, `deliverySlot` (Default: `"6:00 AM – 8:00 AM"`)
+   - `status`: `ACTIVE` | `PAUSED` | `COMPLETED` | `CANCELLED`
+   - `defaultFlowers`, `addressSnapshot`, `deliveryNote`
+   - `razorpayOrderId`, `razorpayPaymentId`
+   - Relation: `scheduleDays` (`DailyDeliverySchedule[]`)
+
+4. **`DailyDeliverySchedule`**:
+   - Day-by-day delivery rows created upon subscription fulfillment.
+   - `subscriptionId`: Foreign key to `Subscription`
+   - `dayNumber`: Sequential index (1..30)
+   - `deliveryDate`: `YYYY-MM-DD` string
+   - `status`: `SCHEDULED` | `PAUSED` | `CANCELLED` | `DELIVERED`
+   - `orderNote`: Specific note for delivery partner
+
+5. **`OneTimeOrder`**:
+   - `orderId`: Unique public order code (e.g. `PAL-ORD-XXXXXX`)
+   - `customerId`: Foreign key to `Customer`
+   - `flowerSummary`, `itemsJson`, `totalGrams`, `amountPaid`
+   - `deliveryDate` (`YYYY-MM-DD`), `deliverySlot`
+   - `addressSnapshot`, `deliveryNote`
+   - `status`: `CONFIRMED` | `DELIVERED` | `CANCELLED`
+
+6. **`StoreConfig`**:
+   - Key-value JSON payload store (`configKey` String primary key, `jsonPayload` LongText).
+   - Used for dynamic catalog overrides, banner banners, and atomic payment order locking (`payment_order_rzp_order_...`).
+
+7. **`Payment` (SQL snapshot table)**:
+   - Stores raw transaction state: `razorpayOrderId`, `razorpayPaymentId`, `razorpaySignature`, `status` (`CREATED` -> `PAID`), `amountInRupees`, `amountInPaise`, snapshot fields.
+
+---
+
+## 5. Core Workflows & Logic
+
+### A. Customer Authentication (Passwordless OTP)
+- Customer enters Email and Phone during checkout.
+- `/api/auth/send-otp` sends a 6-digit OTP via Nodemailer Hostinger SMTP.
+- Customer verifies code at `/api/auth/verify-otp`.
+- On success, sets `palassh_customer_session` HTTP-only cookie containing JWT payload (`customerId`, `email`, `phone`, `fullName`, `activeTier`). Cookie lasts 90 days.
+
+### B. Checkout & Payment Integrity
+- **Amount Convention**:
+  - Storefront calculations operate in **Rupees (₹)**.
+  - Razorpay order creation and capture strictly use **Paise** (`amountInPaise = amountInRupees * 100`).
+- **Fail-Closed Locking Mechanism**:
+  - `/api/checkout/create-order` computes server-side price validation (`validateAndCalculateOrderServerSide`), ensuring the client cannot tamper with amounts.
+  - A locked payment snapshot is stored atomically with status `CREATED`.
+- **Dual-Fulfillment Idempotency**:
+  - Orders can be verified through either the client callback (`/api/checkout/verify`) or Razorpay webhook (`/api/webhooks/razorpay`).
+  - `src/features/checkout/fulfillment.service.ts` executes a single atomic transaction:
+    - Compare-and-swap checks if the snapshot is already marked `PAID`.
+    - If already fulfilled, returns `ALREADY_FULFILLED` without duplicating subscriptions or schedules.
+    - Generates either a `Subscription` with its `DailyDeliverySchedule[]` or a `OneTimeOrder`.
+    - Updates customer's `activeTier`.
+    - Fires `sendOrderConfirmationEmail` asynchronously inside Next.js 16 `after()` background handler.
+
+### C. Subscription Schedule & Pause Management
+- Customers can pause deliveries via `/api/orders/pause` in the `/my-orders` dashboard.
+- Business rules:
+  - Deliveries scheduled for the next morning cannot be paused after cut-off time (typically evening before).
+  - Can only pause up to `maxPausesAllowed`.
+  - Pausing increments `pausesUsedCount` and updates the `DailyDeliverySchedule` row status to `PAUSED`.
+
+### D. Pincode Validation
+- Handled in `src/features/pincode-checker/pincode.service.ts`.
+- Input is sanitized (whitespace removed).
+- Must strictly match keys in `SERVICEABLE_PINCODES` (`400601` through `400608`).
+- Returns area description, city `"Thane"`, and delivery slot `"6:00 AM – 8:00 AM"`.
+
+### E. Admin Operations
+- Admin route: `/admin` (protected by `PALASSH_ADMIN` JWT cookie `palassh_admin_session`).
+- APIs:
+  - `/api/admin/login`: Authenticates with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+  - `/api/admin/dispatch`: Fetches all `SCHEDULED` deliveries for a specific date (`YYYY-MM-DD`) across both subscriptions and one-time orders to create rider delivery rosters.
+  - `/api/admin/dispatch/cron`: Automated daily dispatch trigger authenticated by `Authorization: Bearer <CRON_SECRET>`.
+  - `/api/admin/catalog` & `/api/admin/plans`: Real-time stock, pricing, and variant toggling.
+
+---
+
+## 6. Critical API Endpoints Reference
+
+| Route | Method | Auth Required | Purpose |
+|---|---|---|---|
+| `/api/pincode` | `POST` | Public | Validate Thane pincode (400601–400608) |
+| `/api/auth/send-otp` | `POST` | Public | Send 6-digit OTP code to email |
+| `/api/auth/verify-otp` | `POST` | Public | Verify OTP & set 90-day JWT session cookie |
+| `/api/account` | `GET`, `PUT` | Customer Session | Read or update customer address & details |
+| `/api/checkout/create-order` | `POST` | Customer Session | Validates prices, locks snapshot, creates Razorpay order |
+| `/api/checkout/verify` | `POST` | Customer Session | Verifies Razorpay payment signature & triggers fulfillment |
+| `/api/webhooks/razorpay` | `POST` | Signature Header | Razorpay webhook backup for automated payment capture |
+| `/api/orders` | `GET` | Customer Session | Retrieve user's subscriptions and one-time orders |
+| `/api/orders/pause` | `POST` | Customer Session | Pause specific delivery dates for a subscription |
+| `/api/admin/login` | `POST` | Public | Admin login with credentials |
+| `/api/admin/dispatch` | `GET` | Admin Session | Generate delivery rosters by date |
+| `/api/admin/dispatch/cron` | `POST` | Cron Bearer Secret | Scheduled background dispatch generation |
+| `/api/admin/catalog` | `GET`, `PUT` | Admin Session | Read or update flower catalog & stock |
+| `/api/admin/plans` | `GET`, `PUT` | Admin Session | Read or update subscription plans & pricing |
+| `/api/admin/store-settings` | `GET`, `PUT` | Admin Session | Manage global store settings & announcements |
+
+---
+
+## 7. Environment Variables (`.env`)
+
+```ini
+# Database
+DATABASE_URL="mysql://user:password@host:3306/palassh_db"
+
+# Security & Sessions
+JWT_SECRET="super-secure-random-jwt-secret-min-32-chars"
+ADMIN_EMAIL="admin@palassh.in"
+ADMIN_PASSWORD="secure-admin-password"
+CRON_SECRET="bearer-secret-for-scheduled-dispatch-tasks"
+
+# Razorpay Payments
+RAZORPAY_KEY_ID="rzp_live_..."
+NEXT_PUBLIC_RAZORPAY_KEY_ID="rzp_live_..."
+RAZORPAY_KEY_SECRET="razorpay_secret_key"
+RAZORPAY_WEBHOOK_SECRET="razorpay_webhook_signing_secret"
+
+# Email Delivery (Hostinger SMTP)
+SMTP_HOST="smtp.hostinger.com"
+SMTP_PORT=465
+SMTP_USER="care@palassh.com"
+SMTP_PASS="smtp_secure_password"
+SMTP_FROM="PALASSH Flowers <care@palassh.com>"
+```
+
+*Note: In production (`NODE_ENV === "production"`), `src/lib/env.ts` enforces a strict fail-closed policy. Missing critical secrets (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`) will abort process startup.*
+
+---
+
+## 8. Development & Coding Conventions
+
+### A. Next.js 16 & React 19 Specifics
+- **Async Request APIs**: In Next.js 16, `cookies()`, `headers()`, and route `params` / `searchParams` are Promises and must always be `await`ed.
+- **Server Components by Default**: Client components require `"use client"` directive.
+- **Background Tasks**: Post-response side effects (like sending emails or recording metrics) use `after()` from `next/server` instead of blocking the HTTP response.
+- **Tailwind CSS v4**: Built using `@tailwindcss/postcss`. Custom font families (`--font-serif`, `--font-sans`) and color variables are configured in `src/app/globals.css`.
+
+### B. Important Project Notes
+- **Scrolling Behavior**: Check client scroll interactions (`ScrollReveal.tsx`, `ScrollProgress.tsx`, `SmoothScroll`) before deploying changes to ensure pages do not involuntarily auto-scroll.
+- **Image Handling**: All product images reside in `public/images/` and must be `.webp`. Run `node scripts/validate-images.mjs` before committing new assets to guarantee Sharp validation.
+- **Database Safety**: Never run raw destructive SQL queries (`DROP`, `TRUNCATE`, bulk `DELETE` without constraints) on production databases.

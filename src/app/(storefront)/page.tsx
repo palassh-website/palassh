@@ -60,7 +60,7 @@ const FAQS = [
   {
     tag: "11:45 PM Next-Day Cut-Off",
     q: "When will my first morning flower delivery start?",
-    a: "If you subscribe before 11:45 PM IST tonight, your fresh flowers are harvested at 1:30 AM and delivered tomorrow morning between 6:00 AM – 8:00 AM! Orders placed after 11:45 PM IST start the day after tomorrow.",
+    a: "If you subscribe before 11:45 PM tonight, your fresh flowers will delivered tomorrow morning between 6:00 AM – 8:00 AM! Orders placed after 11:45 PM will deliver the day after tomorrow.",
   },
   {
     tag: "Member-Only Loose Flower Add-Ons",
@@ -958,13 +958,13 @@ export default function HomePage() {
                   step: "01",
                   icon: CalendarCheck,
                   title: "Pick 100g/150g & Flower Type",
-                  desc: "Choose from 7 sacred flower varieties in 100 gms or 150 gms across 1 Day, Weekly, or Monthly plans.",
+                  desc: "Choose from multiple sacred flower varieties in 100 gms or 150 gms across 1 Day, Weekly, or Monthly plans.",
                 },
                 {
                   step: "02",
                   icon: Clock,
-                  title: "1-Day Buffer & 6–8 AM Drop",
-                  desc: "After a 1-day farm harvest buffer, our rider silently hangs your fresh flower pouch between 6:00 AM and 8:00 AM.",
+                  title: " 6:00AM to 8:00AM Drop",
+                  desc: "After your purchasing the  flower, our rider silently hangs your fresh flower pouch between 6:00 AM and 8:00 AM next morning .",
                 },
                 {
                   step: "03",

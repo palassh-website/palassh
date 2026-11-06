@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     title:
       "PALASSH — Farm-Fresh Morning Puja Flower Subscription in Thane (400601–400608)",
     description:
-      "100g & 150g breathable pouches of fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) plucked at 8:00 PM and hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
+      "100g & 150g breathable pouches of fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) dispatched from farms at 8:00 PM and hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
     images: [
       {
         url: "/images/hero-banner.webp",

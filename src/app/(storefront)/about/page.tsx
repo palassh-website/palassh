@@ -166,13 +166,13 @@ export default function AboutUsPage() {
               {
                 time: "08:00 PM",
                 icon: Sparkles,
-                title: "Harvesting Process ",
-                desc: "Partner farmers hand-pluck fresh flower buds 12 to 15 hours before you order .",
+                title: "Dispatch From Farms",
+                desc: "Partner farmers hand-pluck and dispatch fresh flower buds at 8:00 PM.",
               },
               {
                 time: "04:00 AM",
                 icon: Flower2,
-                title: "Kalwa Hub 100g & 150g Sorting",
+                title: "At our Hub 100g & 150g Sorting",
                 desc: "Blooms arrive at our Kharegaon, Kalwa hub where crushed petals are removed and packed into 100g & 150g breathable pouches.",
               },
               {

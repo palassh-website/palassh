@@ -1,4 +1,4 @@
-﻿export interface FlowerProduct {
+export interface FlowerProduct {
   id: string;
   slug: string;
   name: string;
@@ -249,7 +249,7 @@ export const INITIAL_FLOWERS: FlowerProduct[] = [
     marathiName: "मिक्स झेंडू",
     subtitle: "Fresh Orange & Golden Yellow Puja Blooms",
     botanicalNote:
-      "Plucked at 8:00 PM from farms. Zero cold storage, vibrant petals with rich natural fragrance.",
+      "Dispatched fresh at 8:00 PM from farms. Zero cold storage, vibrant petals with rich natural fragrance.",
     imageUrl: "/images/mixmerigold.webp",
     basePricePer100g: 45,
     unitType: "WEIGHT",
@@ -284,7 +284,7 @@ export const INITIAL_FLOWERS: FlowerProduct[] = [
     name: "Yellow Marigold",
     marathiName: "पिवळा झेंडू",
     subtitle: "Golden Yellow Sacred Marigold Blooms",
-    botanicalNote: "Bright golden marigold blooms plucked fresh before dawn.",
+    botanicalNote: "Bright golden marigold blooms plucked fresh and dispatched from farms by 8:00 PM.",
     imageUrl: "/images/yellowmerigold.webp",
     basePricePer100g: 45,
     unitType: "WEIGHT",

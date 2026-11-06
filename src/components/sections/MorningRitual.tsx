@@ -14,13 +14,13 @@ const SLIDES = [
   {
     time: "8:00 PM",
     title: "Dispatch From Farms",
-    subtitle: "1-Day Harvest Buffer",
-    desc: "Hand-plucked by farmers at the coolest hour before dawn after your 1-day booking buffer. Zero cold storage, 100% natural dew.",
+    subtitle: "fresh flowers for you",
+    desc: "Everyday fresh flowers come from farms,so if you order within 12 hours of purchase flower comes to your doorsteps.",
     icon: Sparkles,
   },
   {
     time: "4:00 AM",
-    title: "Reaches Kalwa Hub",
+    title: "Reaches at Our Hub",
     subtitle: "100g & 150g Pouches Sorted",
     desc: "Sorted flower-by-flower into exact 100 gms and 150 gms breathable pouches across all 7 sacred varieties.",
     icon: ShoppingBag,

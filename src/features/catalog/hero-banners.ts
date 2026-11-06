@@ -31,25 +31,25 @@ export function getDynamicHeroBanners(
   return [
     {
       id: "slide-1",
-      badge: "100g & 150g Daily Pouches • Thane 400601–400608",
+      badge: "Daily Flower Delivery ",
       titleLine1: "Sacred Puja Blooms,",
       titleHighlight: "flowers that pray with you.",
       subtitle:
-        "Choose from 7 sacred flower varieties in 100 gms or 150 gms across 1 Day, Weekly, and Monthly plans. Hung silently between 6:00 AM – 8:00 AM.",
+        "Choose from multiple flower varieties in 100 gms or 150 gms across 1 Day, Weekly, and Monthly plans. Hung silently between 6:00 AM – 8:00 AM.",
       imageUrl: "/images/hero-banner.webp",
       primaryBtnText: `Explore Plans From ${oneDayPrice}`,
       primaryBtnHref: "#plans",
-      secondaryBtnText: "View 7 Flower Varieties",
+      secondaryBtnText: "View Flower Varieties",
       secondaryBtnHref: "#plans",
       priceTag: `100g Plans: ${oneDayPrice} Day • ${weeklyPrice} Week • ${monthlyPrice} Month`,
     },
     {
       id: "slide-2",
-      badge: "1-Day Farm Harvest Buffer • Zero Cold Storage",
-      titleLine1: "Marigold, Pooja Flowers",
-      titleHighlight: "& Temple Shevanti.",
+      badge: "100% Natural • Zero Cold Storage",
+      titleLine1: "Fresh Pooja Flowers",
+      titleHighlight: "& with Blessings.",
       subtitle:
-        "Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti plucked fresh at 8:00 PM.",
+        "Orange Marigold, Yellow Marigold, and White & Yellow Shevanti and lot more flowers avilable for your Needs.",
       imageUrl: "/images/chrysanthemum.webp",
       primaryBtnText: "Compare 100g & 150g Plans",
       primaryBtnHref: "#plans",
@@ -60,10 +60,10 @@ export function getDynamicHeroBanners(
     {
       id: "slide-3",
       badge: "Exclusive Member Flower Store",
-      titleLine1: "Subscribe Once,",
-      titleHighlight: "Unlock Loose Shopping.",
+      titleLine1: "Subscribe Plan ,",
+      titleHighlight: "& Unlock Add on's.",
       subtitle:
-        "Subscribe to any Weekly or Monthly Plan to unlock exclusive member access to 100g or 150g daily loose flower Add-On packs.",
+        "Subscribe to any Weekly or Monthly Plan to unlock exclusive member access to 100g or 150g extra flower Add-On packs.",
       imageUrl: "/images/hibiscus.webp",
       primaryBtnText: `Start Monthly Plan @ ${monthlyPrice}`,
       primaryBtnHref: "/checkout?plan=monthly-pack",

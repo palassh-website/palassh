@@ -79,7 +79,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "2. Freshness Replacement Guarantee",
-        body: "Because fresh flowers are perishable botanical items plucked at one day before order, we do not accept physical returns. However, if your morning pouch arrives damaged, share a photo on WhatsApp (+91 91670 34671) within 2 hours of delivery for a free replacement.",
+        body: "Because fresh flowers are perishable botanical items dispatched fresh from farms at 8:00 PM for morning delivery, we do not accept physical returns. However, if your morning pouch arrives damaged, share a photo on WhatsApp (+91 91670 34671) within 2 hours of delivery for a free replacement.",
       },
     ],
   },
