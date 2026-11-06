@@ -115,7 +115,7 @@ export function Navbar() {
           <div className="mx-auto flex max-w-7xl items-center justify-between text-[10px] sm:text-[11px]">
             <span className="hidden md:inline-flex items-center gap-1.5 text-stone-300 font-medium">
               <Sparkles className="h-3 w-3 text-[#D95326]" />
-              <span>Thane Delivery: 6:00 AM – 8:00 AM (400601–400608)</span>
+              <span>Delivery: 6:00 AM To 8:00 AM</span>
             </span>
             <p className="mx-auto md:mx-0 font-serif text-xs sm:text-sm font-bold tracking-[0.16em] text-[#F5D0A9]">
               {pathname === "/"
@@ -147,7 +147,7 @@ export function Navbar() {
                 />
               </div>
               <div className="flex flex-col">
-                <span className="font-serif text-lg sm:text-2xl font-bold tracking-[0.14em] text-stone-900 leading-none">
+                <span className="font-serif text-lg sm:text-2xl font-bold tracking-[0.14em] leading-none text-[#C84617] drop-shadow-[0_0_8px_rgba(234,88,12,0.45)]">
                   PALASSH
                 </span>
                 <span className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] italic text-[#D95326] font-serif whitespace-nowrap">

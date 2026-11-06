@@ -554,7 +554,7 @@ function CheckoutContent() {
 
     if (formData.startDate < earliestDeliveryDate) {
       setFormError(
-        `Order Before 11:45 PM for Next-Day Delivery: Earliest morning delivery available is ${earliestDeliveryDate} (6:00 AM – 8:00 AM)..`
+        `Order Before 11:45 PM for Next-Day Delivery: Earliest morning delivery available is ${earliestDeliveryDate} (6:00 AM – 8:00 AM).`
       );
       return;
     }

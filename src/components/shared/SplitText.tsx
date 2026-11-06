@@ -57,10 +57,15 @@ export function SplitText({
   const Tag = as as unknown as React.ComponentType<any>;
   const words = text.split(" ");
   let index = 0;
+  // aria-label is only valid on elements with a role (headings here); on a
+  // plain span/p/div it is ignored, so hiding the split words there would
+  // make the text disappear for screen readers.
+  const isHeading = as === "h1" || as === "h2" || as === "h3";
 
   return (
     <Tag
       ref={ref}
+      aria-label={isHeading ? text : undefined}
       data-play={isPlaying ? "true" : "false"}
       className={`split-root ${className}`}
       style={
@@ -70,28 +75,30 @@ export function SplitText({
         } as React.CSSProperties
       }
     >
-      {words.map((word, wi) => (
-        <React.Fragment key={`${word}-${wi}`}>
-          {mode === "chars" ? (
-            <span className="split-chunk">
-              {word.split("").map((ch, ci) => (
-                <span key={ci} className="split-word">
-                  <span style={{ "--i": index++ } as React.CSSProperties}>
-                    {ch}
+      <span aria-hidden={isHeading ? true : undefined}>
+        {words.map((word, wi) => (
+          <React.Fragment key={`${word}-${wi}`}>
+            {mode === "chars" ? (
+              <span className="split-chunk">
+                {word.split("").map((ch, ci) => (
+                  <span key={ci} className="split-word">
+                    <span style={{ "--i": index++ } as React.CSSProperties}>
+                      {ch}
+                    </span>
                   </span>
-                </span>
-              ))}
-            </span>
-          ) : (
-            <span className="split-word">
-              <span style={{ "--i": index++ } as React.CSSProperties}>
-                {word}
+                ))}
               </span>
-            </span>
-          )}
-          {wi < words.length - 1 ? " " : null}
-        </React.Fragment>
-      ))}
+            ) : (
+              <span className="split-word">
+                <span style={{ "--i": index++ } as React.CSSProperties}>
+                  {word}
+                </span>
+              </span>
+            )}
+            {wi < words.length - 1 ? " " : null}
+          </React.Fragment>
+        ))}
+      </span>
     </Tag>
   );
 }

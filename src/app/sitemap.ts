@@ -1,69 +1,21 @@
 import { MetadataRoute } from "next";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://palassh.com";
-  const lastModified = new Date();
+// Only indexable pages belong here. /checkout, /my-orders and /account are
+// noindex, so listing them would contradict their robots meta.
+// lastModified is intentionally omitted: a value that changes on every request
+// teaches Google to ignore it. Add real per-page dates when they are tracked.
+const BASE_URL = "https://palassh.com";
 
-  return [
-    {
-      url: baseUrl,
-      lastModified,
-      changeFrequency: "daily",
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/products`,
-      lastModified,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/checkout`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/my-orders`,
-      lastModified,
-      changeFrequency: "daily",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/legal/privacy-policy`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/legal/terms-and-conditions`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/legal/refund-policy`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/legal/shipping-policy`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/llms.txt`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-  ];
+const PATHS = [
+  "",
+  "/products",
+  "/about",
+  "/legal/privacy-policy",
+  "/legal/terms-and-conditions",
+  "/legal/refund-policy",
+  "/legal/shipping-policy",
+];
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return PATHS.map((path) => ({ url: `${BASE_URL}${path}` }));
 }

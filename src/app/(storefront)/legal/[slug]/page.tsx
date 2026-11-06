@@ -1,5 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Clock, MapPin } from "lucide-react";
 
@@ -43,7 +44,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "6. Flower Quality Replacement",
-        body: "If a flower pouch ever arrives damaged, the customer can raise a complaint on WhatsApp (+91 91670 34671) within 2 hours of morning delivery for a free replacement ,replacement may take time .",
+        body: "If a flower pouch ever arrives damaged, the customer can raise a complaint on WhatsApp (+91 91670 34671) within 2 hours of morning delivery for a free replacement. A replacement may take some time.",
       },
     ],
   },
@@ -91,7 +92,7 @@ const LEGAL_CONTENT: Record<
     sections: [
       {
         heading: "1. Serviceable Thane Pincodes (400601 – 400608)",
-        body: "Our delivery is only avilable for 400601 to 400608 pincodes,for now .",
+        body: "Our delivery is only available for 400601 to 400608 pincodes, for now.",
       },
       {
         heading: "2. Delivery Timings & 1-Day Farm Buffer",
@@ -105,13 +106,21 @@ const LEGAL_CONTENT: Record<
   },
 };
 
+// Unknown slugs must 404 instead of rendering Terms under a bogus URL.
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return Object.keys(LEGAL_CONTENT).map((slug) => ({ slug }));
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const doc = LEGAL_CONTENT[slug] || LEGAL_CONTENT["terms-and-conditions"];
+  const doc = LEGAL_CONTENT[slug];
+  if (!doc) notFound();
   return {
     title: doc.title,
     description: doc.description,
@@ -125,7 +134,8 @@ export default async function LegalPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const doc = LEGAL_CONTENT[slug] || LEGAL_CONTENT["terms-and-conditions"];
+  const doc = LEGAL_CONTENT[slug];
+  if (!doc) notFound();
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] py-16 px-4 sm:px-6 lg:px-8">

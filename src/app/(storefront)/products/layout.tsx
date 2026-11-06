@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Fresh Marigold (झेंडू), Shevanti & Pooja Flowers (100g / 150g) in Thane",
+  title: "Fresh Marigold, Shevanti & Pooja Flowers in Thane",
   description:
-    "Order 100g and 150g farm-fresh Mixed Marigold, Orange & Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti in Thane (400601–400608). Delivered between 6:00 AM – 8:00 AM.",
+    "Farm-fresh Marigold, Pooja Flowers and Shevanti in 100g & 150g packs across Thane (400601–400608), delivered between 6:00 AM – 8:00 AM.",
   alternates: { canonical: "https://palassh.com/products" },
 };
 

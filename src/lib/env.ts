@@ -44,7 +44,7 @@ export function getEnvConfig() {
   return {
     DATABASE_URL: databaseUrl,
     JWT_SECRET: jwtSecret || "palassh-dev-fallback-secret-key-2026",
-    ADMIN_EMAIL: adminEmail || "admin@palassh.in",
+    ADMIN_EMAIL: adminEmail || "care@palassh.com",
     ADMIN_PASSWORD: adminPassword || "palassh@2026",
 
     SMTP_HOST: cleanEnvValue(process.env.SMTP_HOST, "smtp.hostinger.com"),

@@ -49,7 +49,7 @@ export function getDynamicHeroBanners(
       titleLine1: "Fresh Pooja Flowers",
       titleHighlight: "& with Blessings.",
       subtitle:
-        "Orange Marigold, Yellow Marigold, and White & Yellow Shevanti and lot more flowers avilable for your Needs.",
+        "Orange Marigold, Yellow Marigold, and White & Yellow Shevanti and lot more flowers available for your Needs.",
       imageUrl: "/images/chrysanthemum.webp",
       primaryBtnText: "Compare 100g & 150g Plans",
       primaryBtnHref: "#plans",

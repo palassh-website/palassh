@@ -28,12 +28,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://palassh.com"),
   title: {
-    default:
-      "PALASSH | Fresh Puja Flower Subscription in Thane (6:00 AM – 8:00 AM Delivery)",
-    template: "%s | PALASSH Sacred Puja Flowers Thane",
+    default: "Fresh Puja Flower Subscription in Thane | PALASSH",
+    template: "%s | PALASSH",
   },
   description:
-    "Flowers that pray with you. Subscribe to 100g & 150g daily farm-fresh Puja Flowers in Thane (400601–400608). Mixed Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) delivered silently between 6:00 AM – 8:00 AM across Thane West, Ghodbunder Road, Naupada, Pokhran, Kalwa & Balkum. Plans starting at ₹45.",
+    "Daily farm-fresh puja flowers in Thane (400601–400608), delivered silently between 6:00 AM – 8:00 AM. Marigold, Shevanti & Pooja flowers. Plans from ₹45.",
   keywords: [
     "puja flower delivery thane",
     "daily pooja flowers subscription thane west",
@@ -45,7 +44,7 @@ export const metadata: Metadata = {
     "monthly puja flower subscription thane",
     "weekly pooja flower pack thane",
     "fresh mandir flowers kalwa kharegaon naupada",
-    "wartak nagar pokhran road flower delivery",
+    "vartak nagar pokhran road flower delivery",
     "balkum kolshet road morning puja flowers",
     "पूजा फुले ठाणे होम डिलिव्हरी",
     "झेंडू शेवंती पूजा फुले ठाणे",
@@ -53,21 +52,17 @@ export const metadata: Metadata = {
   authors: [{ name: "PALASSH Flowers Thane", url: "https://palassh.com" }],
   creator: "PALASSH Flowers",
   publisher: "PALASSH Flowers",
-  alternates: {
-    canonical: "https://palassh.com",
-  },
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: "https://palassh.com",
     siteName: "PALASSH Flowers Thane",
-    title:
-      "PALASSH — Farm-Fresh Morning Puja Flower Subscription in Thane (400601–400608)",
+    title: "PALASSH — Morning Puja Flower Subscription in Thane",
     description:
-      "100g & 150g breathable pouches of fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) dispatched from farms at 8:00 PM and hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
+      "Fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) in 100g & 150g pouches, hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
     images: [
       {
-        url: "/images/hero-banner.webp",
+        url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "PALASSH Sacred Morning Puja Flowers Thane",
@@ -79,7 +74,7 @@ export const metadata: Metadata = {
     title: "PALASSH | Morning 6–8 AM Puja Flower Subscription in Thane",
     description:
       "100% Zero Cold Storage farm-fresh puja flowers delivered daily across Thane pincodes 400601 to 400608. 1 Day, Weekly & Monthly plans from ₹45.",
-    images: ["/images/hero-banner.webp"],
+    images: ["/images/og-image.jpg"],
   },
   robots: {
     index: true,
@@ -93,7 +88,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/images/logo.webp",
-    apple: "/images/logo.webp",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -110,7 +105,6 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
     "Farm-to-Mandir morning puja flower subscription service in Thane delivering 100g and 150g pouches of Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti between 6:00 AM and 8:00 AM.",
   telephone: "+919167034671",
   email: "care@palassh.com",
-  priceRange: "₹45 - ₹2529",
   address: {
     "@type": "PostalAddress",
     streetAddress:
@@ -168,14 +162,6 @@ export default function RootLayout({
       className={`${fraunces.variable} ${interTight.variable} font-sans scroll-smooth`}
     >
       <head>
-        <link
-          rel="preload"
-          as="image"
-          href="/images/hero-banner.webp"
-          type="image/webp"
-          // @ts-expect-error fetchpriority is standard HTML
-          fetchpriority="high"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
