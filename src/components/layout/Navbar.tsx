@@ -50,7 +50,7 @@ export function Navbar() {
           setCustomerTier(data.customer.activeTier);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const handleOpenDrawer = () => {
       syncNavbarCart();
@@ -101,6 +101,7 @@ export function Navbar() {
     { label: "Subscriptions", href: "/#plans" },
     { label: "All Flowers", href: "/products" },
     { label: "About Us", href: "/about" },
+    { label: "How Plan Works", href: "/how-it-works" },
     { label: "Check Pincode", href: "/#pincode-check", isPin: true },
   ];
 
@@ -164,13 +165,12 @@ export function Navbar() {
                   <Link
                     key={item.label}
                     href={item.href}
-                    className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition ${
-                      isActive
+                    className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition ${isActive
                         ? "bg-[#D95326] text-white shadow-2xs"
                         : item.isPin
-                        ? "text-[#D95326] hover:bg-[#F3ECE1]"
-                        : "text-stone-700 hover:bg-[#F3ECE1] hover:text-stone-900"
-                    }`}
+                          ? "text-[#D95326] hover:bg-[#F3ECE1]"
+                          : "text-stone-700 hover:bg-[#F3ECE1] hover:text-stone-900"
+                      }`}
                   >
                     {item.isPin && (
                       <MapPin className="h-3.5 w-3.5 text-[#D95326]" />
@@ -283,6 +283,13 @@ export function Navbar() {
                 Member Flower Store (/products)
               </Link>
               <Link
+                href="/how-it-works"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-[#F3ECE1]"
+              >
+                How Subscription Works
+              </Link>
+              <Link
                 href="/about"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-[#F3ECE1]"
@@ -330,8 +337,8 @@ export function Navbar() {
                   </p>
                   <p className="text-[11px] text-stone-600">
                     {customerTier !== "WEEKLY" && customerTier !== "MONTHLY"
-                     ? "Weekly & Monthly Subscribers Only: Subscribe to a Weekly or Monthly Plan to unlock 100g/150g loose flower Add-Ons."
-                     : `Active Subscriber (${customerTier}): You are eligible for daily 100g/150g loose flower Add-Ons.`}
+                      ? "Weekly & Monthly Subscribers Only: Subscribe to a Weekly or Monthly Plan to unlock 100g/150g loose flower Add-Ons."
+                      : `Active Subscriber (${customerTier}): You are eligible for daily 100g/150g loose flower Add-Ons.`}
                   </p>
                 </div>
 

@@ -35,20 +35,17 @@ export async function GET() {
                 customDeliveriesCount: pl.deliveriesCount,
                 variantsList: variants,
               });
-              return `${pl.title} (${pl.deliveriesCount} ${
-                pl.deliveriesCount === 1 ? "Day" : "Days"
-              }): ₹${resolved.price.toLocaleString("en-IN")} (~₹${
-                resolved.perDayEffectivePrice
-              }/day)`;
+              return `${pl.title} (${pl.deliveriesCount} ${pl.deliveriesCount === 1 ? "Day" : "Days"
+                }): ₹${resolved.price.toLocaleString("en-IN")} (~₹${resolved.perDayEffectivePrice
+                }/day)`;
             })
             .join(" | ");
           return `  - **${wt} gms Pouch:** ${planPrices}`;
         })
         .join("\n");
 
-      return `### ${idx + 1}. ${v.name} (${v.marathiName})\n- **Description:** ${
-        v.subtitle
-      }\n${weightLines}`;
+      return `### ${idx + 1}. ${v.name} (${v.marathiName})\n- **Description:** ${v.subtitle
+        }\n${weightLines}`;
     })
     .join("\n\n");
 
@@ -59,9 +56,8 @@ export async function GET() {
         .map((w) => `${w.grams}g @ ₹${w.price}`)
         .join(", ");
       const stockTag = f.inStock ? "In Stock" : "Seasonal / Out of Stock";
-      return `- **${f.name} (${f.marathiName}):** ${f.subtitle} — ${
-        packPrices || `Base ₹${f.basePricePer100g}/100g`
-      } [${stockTag}] (${f.deityAffinity})`;
+      return `- **${f.name} (${f.marathiName}):** ${f.subtitle} — ${packPrices || `Base ₹${f.basePricePer100g}/100g`
+        } [${stockTag}] (${f.deityAffinity})`;
     })
     .join("\n");
 
@@ -69,8 +65,7 @@ export async function GET() {
   const plansMarkdown = plans
     .map(
       (p) =>
-        `- **${p.title} (${p.deliveriesCount} Morning ${
-          p.deliveriesCount === 1 ? "Delivery" : "Deliveries"
+        `- **${p.title} (${p.deliveriesCount} Morning ${p.deliveriesCount === 1 ? "Delivery" : "Deliveries"
         }):** Starting from ₹${p.price.toLocaleString("en-IN")}. ${p.subtitle}`
     )
     .join("\n");
@@ -83,7 +78,7 @@ export async function GET() {
 - **Website:** https://palassh.com
 - **Brand Name:** PALASSH Flowers (पलाश)
 - **Founders:** Mrs. Ankita Jagtap & Mr. Pratik Jagtap
-- **Customer Support / WhatsApp Concierge:** +91 91670 34671
+- **Customer Support / WhatsApp Concierge:** +917710942605
 - **Official Email:** care@palassh.com
 - **Main Sorting & Dispatch Hub:** 6X4X+HJ5 Glenmark Residency, 60 Feet Rd, Kharegaon, Kalwa, Thane, Maharashtra 400605, India
 - **Morning Delivery Window:** 6:00 AM – 8:00 AM IST daily (Silent Doorstep Drop on main door handle — zero doorbell ringing)

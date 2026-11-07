@@ -354,7 +354,7 @@ export default function AboutUsPage() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <PhoneCall className="h-4 w-4 text-[#D95326]" />
-                  Support: +91 91670 34671
+                  Support: +917710942605
                 </span>
               </div>
             </div>

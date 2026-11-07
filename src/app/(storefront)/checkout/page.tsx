@@ -223,7 +223,7 @@ function CheckoutContent() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     window.addEventListener("palassh-plans-updated", syncCheckout);
     window.addEventListener("storage", syncCheckout);
@@ -292,7 +292,7 @@ function CheckoutContent() {
       if (!res.ok || !data.success) {
         setFormError(
           data.error ||
-            "Could not send verification email. Please verify your email address."
+          "Could not send verification email. Please verify your email address."
         );
         setOtpNotice("");
         return;
@@ -434,7 +434,7 @@ function CheckoutContent() {
         ? ""
         : ` Payment ID: ${paymentPayload.razorpayPaymentId}.`;
       setFormError(
-        `Payment received, but we could not confirm your order yet. ${failureMessage}${idNote} Please do NOT pay again. Check My Orders in a few minutes, or contact support on +91 91670 34671 with your Payment ID.`
+        `Payment received, but we could not confirm your order yet. ${failureMessage}${idNote} Please do NOT pay again. Check My Orders in a few minutes, or contact support on +917710942605 with your Payment ID.`
       );
       setIsProcessing(false);
       return;
@@ -497,18 +497,18 @@ function CheckoutContent() {
         deliveryNote: sub.deliveryNote,
         calendarDays: Array.isArray(sub.scheduleDays)
           ? sub.scheduleDays.map(
-              (d: {
-                deliveryDate: string;
-                dayNumber: number;
-                status: string;
-                orderNote?: string;
-              }) => ({
-                dateStr: d.deliveryDate,
-                dayNumber: d.dayNumber,
-                status: d.status,
-                orderNote: d.orderNote || "",
-              })
-            )
+            (d: {
+              deliveryDate: string;
+              dayNumber: number;
+              status: string;
+              orderNote?: string;
+            }) => ({
+              dateStr: d.deliveryDate,
+              dayNumber: d.dayNumber,
+              status: d.status,
+              orderNote: d.orderNote || "",
+            })
+          )
           : [],
       };
       try {
@@ -517,9 +517,9 @@ function CheckoutContent() {
           JSON.stringify(localSub)
 
         );
-      //Fix: Immediately notify Navbar and same-tab listeners of the new subscriber tier!
-      window.dispatchEvent(new Event("palassh-store-access-updated"));
-      window.dispatchEvent(new Event("palassh-cart-updated"));
+        //Fix: Immediately notify Navbar and same-tab listeners of the new subscriber tier!
+        window.dispatchEvent(new Event("palassh-store-access-updated"));
+        window.dispatchEvent(new Event("palassh-cart-updated"));
       } catch {
         // Ignore
       }
@@ -586,7 +586,7 @@ function CheckoutContent() {
         addonWindow.lockedLastTwoDates.includes(formData.startDate)
       ) {
         setFormError(
-          `Final 2 Days Lockout: ${formData.startDate} is within the final 2 delivery days of your subscription. Add-Ons are not allowed on the last 2 days.`
+          `Final Day Lockout: ${formData.startDate} is within the final delivery days of your subscription. Add-Ons are not allowed on the last day.`
         );
         return;
       }
@@ -776,11 +776,10 @@ function CheckoutContent() {
                           key={pl.id}
                           type="button"
                           onClick={() => setSelectedPlan(pl)}
-                          className={`rounded-xl border py-2.5 px-2 text-xs font-bold transition cursor-pointer ${
-                            active
-                              ? "border-[#D95326] bg-[#D95326] text-white"
-                              : "border-[#E6DEC8] bg-white text-stone-700 hover:border-stone-400"
-                          }`}
+                          className={`rounded-xl border py-2.5 px-2 text-xs font-bold transition cursor-pointer ${active
+                            ? "border-[#D95326] bg-[#D95326] text-white"
+                            : "border-[#E6DEC8] bg-white text-stone-700 hover:border-stone-400"
+                            }`}
                         >
                           {pl.title}
                         </button>
@@ -796,11 +795,10 @@ function CheckoutContent() {
                           key={wt}
                           type="button"
                           onClick={() => setSelectedWeightGrams(wt)}
-                          className={`rounded-xl border py-2 text-xs font-bold transition cursor-pointer ${
-                            active
-                              ? "border-stone-900 bg-stone-900 text-white"
-                              : "border-[#E6DEC8] bg-white text-stone-700"
-                          }`}
+                          className={`rounded-xl border py-2 text-xs font-bold transition cursor-pointer ${active
+                            ? "border-stone-900 bg-stone-900 text-white"
+                            : "border-[#E6DEC8] bg-white text-stone-700"
+                            }`}
                         >
                           {wt} gms Pouch
                         </button>
@@ -929,8 +927,8 @@ function CheckoutContent() {
                         {isSendingOtp
                           ? "Sending OTP..."
                           : otpSent
-                          ? "Resend Code"
-                          : "Send Verification Code"}
+                            ? "Resend Code"
+                            : "Send Verification Code"}
                       </button>
                     )}
                   </div>
@@ -985,11 +983,10 @@ function CheckoutContent() {
                     />
                     {pincodeStatus.checked && (
                       <p
-                        className={`mt-1 text-[11px] font-semibold ${
-                          pincodeStatus.serviceable
-                            ? "text-[#D95326]"
-                            : "text-rose-600"
-                        }`}
+                        className={`mt-1 text-[11px] font-semibold ${pincodeStatus.serviceable
+                          ? "text-[#D95326]"
+                          : "text-rose-600"
+                          }`}
                       >
                         {pincodeStatus.message}
                       </p>
@@ -1057,7 +1054,7 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                {/* Delivery Date Picker: Enforces 1-Day Buffer + Excludes Last 2 Days of Plan for Add-Ons */}
+                {/* Delivery Date Picker: Enforces 1-Day Buffer + Excludes Last Day of Plan for Add-Ons */}
                 <div className="rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] p-4 space-y-2">
                   <label className="block text-xs font-bold text-stone-800">
                     {isOneTimeCartCheckout
@@ -1065,7 +1062,7 @@ function CheckoutContent() {
                       : "First Morning Delivery Date (6:00 AM – 8:00 AM) *"}
                   </label>
                   {isOneTimeCartCheckout &&
-                  addonWindow.eligibleDates.length > 0 ? (
+                    addonWindow.eligibleDates.length > 0 ? (
                     <select
                       value={formData.startDate}
                       onChange={(e) => {
@@ -1092,7 +1089,7 @@ function CheckoutContent() {
                         min={earliestDeliveryDate}
                         max={
                           isOneTimeCartCheckout &&
-                          addonWindow.maxAllowedAddonDate
+                            addonWindow.maxAllowedAddonDate
                             ? addonWindow.maxAllowedAddonDate
                             : undefined
                         }
@@ -1111,7 +1108,7 @@ function CheckoutContent() {
                   <p className="text-[11px] text-stone-500">
                     * 1-Day Farm Harvest Buffer Applied.{" "}
                     {isOneTimeCartCheckout
-                      ? "Add-Ons cannot be booked on the final 2 delivery days of your subscription."
+                      ? "Add-Ons cannot be booked on the final delivery day of your subscription."
                       : "Your one-time confirmation email will include your First & Last delivery dates."}
                   </p>
                 </div>
@@ -1127,8 +1124,8 @@ function CheckoutContent() {
                       {isProcessing
                         ? "Processing Order..."
                         : paidPaymentId
-                        ? "Payment Received — Do Not Pay Again"
-                        : `Pay ₹${payableAmount.toLocaleString(
+                          ? "Payment Received — Do Not Pay Again"
+                          : `Pay ₹${payableAmount.toLocaleString(
                             "en-IN"
                           )} & Schedule 6–8 AM Delivery`}
                     </span>
@@ -1232,8 +1229,8 @@ function CheckoutContent() {
                   {isProcessing
                     ? "Processing..."
                     : paidPaymentId
-                    ? "Payment Received"
-                    : `Pay ₹${payableAmount.toLocaleString("en-IN")} Now`}
+                      ? "Payment Received"
+                      : `Pay ₹${payableAmount.toLocaleString("en-IN")} Now`}
                 </span>
               </button>
 
@@ -1243,7 +1240,7 @@ function CheckoutContent() {
                   100% Farm-Fresh Thane Guarantee
                 </p>
                 <p className="text-stone-600">
-                  Support & WhatsApp Desk: <strong>+91 91670 34671</strong>
+                  Support & WhatsApp Desk: <strong>+917710942605</strong>
                 </p>
               </div>
             </div>

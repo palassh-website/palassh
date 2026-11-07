@@ -323,7 +323,7 @@ export async function validateAndCalculateOrderServerSide(input: {
       valid: false,
       error:
         windowCheck.blockReason ||
-        "Add-Ons cannot be booked during the final 2 delivery days of your subscription plan.",
+        "Add-Ons cannot be booked on the final delivery day of your subscription plan.",
       amountInRupees: 0,
       totalGrams: 0,
     };
@@ -332,7 +332,7 @@ export async function validateAndCalculateOrderServerSide(input: {
   if (windowCheck.lockedLastTwoDates.includes(input.deliveryDate)) {
     return {
       valid: false,
-      error: `Last 2 Days Lockout: ${input.deliveryDate} is one of the final 2 delivery days of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
+      error: `Last Day Lockout: ${input.deliveryDate} is one of the final delivery day of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
       amountInRupees: 0,
       totalGrams: 0,
     };
@@ -341,7 +341,7 @@ export async function validateAndCalculateOrderServerSide(input: {
   if (!windowCheck.eligibleDates.includes(input.deliveryDate)) {
     return {
       valid: false,
-      error: `Invalid Add-On Date: Please select an active scheduled delivery date from your plan between ${windowCheck.eligibleDates[0]} and ${windowCheck.maxAllowedAddonDate}.`,
+      error: `Final Day Lockout: ${input.deliveryDate} is the last delivery day of your current plan. Add-Ons are allowed up to ${windowCheck.maxAllowedAddonDate}.`,
       amountInRupees: 0,
       totalGrams: 0,
     };

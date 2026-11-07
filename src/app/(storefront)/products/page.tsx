@@ -156,10 +156,10 @@ export default function AllProductsPage() {
       setPopupToast({
         visible: true,
         isError: true,
-        title: "Add-On Window Closed (Last 2 Days Rule)",
+        title: "Add-On Window Closed (Last Day Rule)",
         subtitle:
           addonWindow.blockReason ||
-          "Add-Ons cannot be booked during the last 2 days of your plan.",
+          "Add-Ons cannot be booked during the last day of your plan.",
       });
       toastTimerRef.current = setTimeout(
         () => setPopupToast((prev) => ({ ...prev, visible: false })),
@@ -369,8 +369,8 @@ export default function AllProductsPage() {
                     Date:
                   </p>
                   <p className="text-[11px] text-stone-500">
-                    1-Day Farm Buffer Applied • Final 2 days of your plan (
-                    {addonWindow.lockedLastTwoDates.join(", ") || "last 2 days"}
+                    Next Morning Delivery Avilable • Final day of your plan (
+                    {addonWindow.lockedLastTwoDates.join(", ") || "last day"}
                     ) are automatically excluded.
                   </p>
                 </div>

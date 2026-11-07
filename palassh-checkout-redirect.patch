@@ -1,0 +1,219 @@
+diff --git a/src/app/(storefront)/HomePageClient.tsx b/src/app/(storefront)/HomePageClient.tsx
+index 8ce5f8c..310bb09 100644
+--- a/src/app/(storefront)/HomePageClient.tsx
++++ b/src/app/(storefront)/HomePageClient.tsx
+@@ -45,6 +45,7 @@ import {
+   getCurrentCustomerTier,
+   getFestiveModeStatus,
+   validateDirectFlowerPurchaseLimit,
++  buildDirectFlowerCheckoutUrl,
+ } from "@/features/catalog/types";
+ import {
+   HeroSlideBanner,
+@@ -366,6 +367,18 @@ export default function HomePage() {
+     }, 4500);
+   };
+ 
++  // Visitors without an active plan go straight to Checkout with the chosen
++  // flower and weight (1-Day plan pre-selected, switchable there) instead of
++  // being scrolled up to the plan cards.
++  const goToCheckoutWithFlower = (flower: FlowerProduct) => {
++    const weightIdx = selectedWeightIdxByFlower[flower.id] || 0;
++    const weightObj =
++      flower.availableWeights[weightIdx] || flower.availableWeights[0];
++    router.push(
++      buildDirectFlowerCheckoutUrl({ flower, grams: weightObj?.grams })
++    );
++  };
++
+   const handleSubmitReview = (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!reviewerName.trim() || !reviewerQuote.trim()) return;
+@@ -769,7 +782,7 @@ export default function HomePage() {
+                     isUplifted={isCardUplifted}
+                     onClick={() => {
+                       if (isLockedForNonPlanUser) {
+-                        scrollToPlans();
++                        goToCheckoutWithFlower(flower);
+                         return;
+                       }
+                       setUpliftedFlowerId((prev) =>
+@@ -873,11 +886,14 @@ export default function HomePage() {
+                       {isLockedForNonPlanUser ? (
+                         <button
+                           type="button"
+-                          onClick={(e) => scrollToPlans(e)}
++                          onClick={(e) => {
++                            e.stopPropagation();
++                            goToCheckoutWithFlower(flower);
++                          }}
+                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FAF6F0] border border-[#E6DEC8] hover:border-[#D95326] py-3.5 px-3 text-xs font-bold text-stone-800 hover:text-[#D95326] transition cursor-pointer"
+                         >
+-                          <Lock className="h-3.5 w-3.5 text-[#D95326]" />
+-                          <span>Plan Members Only • Choose a Plan</span>
++                          <ShoppingBag className="h-3.5 w-3.5 text-[#D95326]" />
++                          <span>Subscribe & Order {selectedWeight.grams}g</span>
+                         </button>
+                       ) : (
+                         <div className="grid grid-cols-2 gap-2.5">
+diff --git a/src/app/(storefront)/products/page.tsx b/src/app/(storefront)/products/page.tsx
+index babf9d0..6c0daaf 100644
+--- a/src/app/(storefront)/products/page.tsx
++++ b/src/app/(storefront)/products/page.tsx
+@@ -27,6 +27,8 @@ import {
+   getCurrentCustomerTier,
+   getEarliestDeliveryDateString,
+   getSubscriberAddonWindow,
++  buildDirectFlowerCheckoutUrl,
++  buildPlanCheckoutUrl,
+ } from "@/features/catalog/types";
+ 
+ export default function AllProductsPage() {
+@@ -330,13 +332,14 @@ export default function AllProductsPage() {
+                 </div>
+               </div>
+               <div className="flex flex-wrap gap-2.5 shrink-0">
+-                <Link
+-                  href="/#plans"
+-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] px-6 py-3.5 text-xs font-bold text-white shadow-sm transition"
++                <button
++                  type="button"
++                  onClick={() => router.push(buildPlanCheckoutUrl("plan-weekly"))}
++                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] px-6 py-3.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+                 >
+                   <span>Subscribe to Weekly / Monthly Plan</span>
+                   <ArrowRight className="h-4 w-4" />
+-                </Link>
++                </button>
+                 <Link
+                   href="/my-orders"
+                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#E6DEC8] bg-white px-5 py-3.5 text-xs font-bold text-stone-800 hover:border-[#D95326]"
+@@ -521,13 +524,25 @@ export default function AllProductsPage() {
+                           <span>Currently Out of Stock</span>
+                         </button>
+                       ) : isLocked ? (
+-                        <Link
+-                          href="/#plans"
++                        <button
++                          type="button"
++                          onClick={() =>
++                            router.push(
++                              buildDirectFlowerCheckoutUrl({
++                                flower,
++                                grams: selectedGrams,
++                              })
++                            )
++                          }
+                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FAF6F0] border border-[#E6DEC8] hover:border-[#D95326] py-4 text-xs font-bold text-stone-800 hover:text-[#D95326] transition cursor-pointer"
+                         >
+-                          <Lock className="h-4 w-4 text-[#D95326]" />
+-                          <span>Weekly / Monthly Subscribers Only</span>
+-                        </Link>
++                          <ShoppingBag className="h-4 w-4 text-[#D95326]" />
++                          <span>
++                            {isWeeklyOrMonthly
++                              ? `Add-Ons Closed • Renew with ${selectedGrams}g`
++                              : `Subscribe & Order ${selectedGrams}g`}
++                          </span>
++                        </button>
+                       ) : (
+                         <div className="grid grid-cols-2 gap-2.5">
+                           <button
+diff --git a/src/features/catalog/types.ts b/src/features/catalog/types.ts
+index b76d03c..4027441 100644
+--- a/src/features/catalog/types.ts
++++ b/src/features/catalog/types.ts
+@@ -1026,45 +1026,68 @@ export function validateDirectFlowerPurchaseLimit(
+ }
+ 
+ /**
+- * Builds a pre-filled /checkout URL for any FlowerProduct & weight (100g / 150g)
+- * so non-subscribers clicking a flower card on "/" or "/products" go straight to
+- * Checkout with that exact flower variety and weight selected.
++ * Builds a pre-filled /checkout URL for a flower card, so a visitor without an
++ * active plan goes straight to Checkout with that flower and weight selected
++ * instead of being sent to the plan cards on the homepage.
++ *
++ * The 1-Day plan is pre-selected by default; the user can still switch to
++ * Weekly / Monthly on Checkout. Weight and variant are validated with
++ * resolvePlanVariantPricing (the same resolver Checkout and PlanCards use), so
++ * the URL always matches what Checkout will actually show.
++ *
++ * Call it from event handlers, not during render: plan and variant data can
++ * come from localStorage, which would differ between server and first client
++ * render and cause a hydration mismatch.
+  */
+ export function buildDirectFlowerCheckoutUrl(params: {
+   flower: FlowerProduct;
+   grams?: number;
+   planSlug?: string;
+ }): string {
+-  const variants = getActivePlanVariants();
+   const plans = getActivePlansCatalog();
+-
+-  // Map flw-* ID or flower name to the corresponding prod-* PlanProductVariant
+-  const mappedId = params.flower.id.replace(/^flw-/, "prod-");
+-  const matchedVariant =
+-    variants.find(
+-      (v) =>
+-        v.id === mappedId ||
+-        v.name.toLowerCase() === params.flower.name.toLowerCase()
+-    ) ||
+-    variants[0] ||
+-    PLAN_PRODUCT_VARIANTS[0];
+-
+-  const weightGrams =
+-    params.grams === 150 || params.grams === 100 ? params.grams : 100;
+-
+-  // Default to the 1-Day trial plan (or matched planSlug) so the user can also switch to Weekly/Monthly on Checkout
+   const targetPlan =
+     plans.find((p) => p.slug === params.planSlug) ||
+     plans.find((p) => p.id === "plan-daily") ||
+     plans[0] ||
+     INITIAL_PLANS[0];
+ 
++  // Catalog flowers are "flw-*"; plan variants are "prod-*" with the same suffix.
++  const variants = getActivePlanVariants();
++  const mappedId = params.flower.id.replace(/^flw-/, "prod-");
++  const matchedVariant =
++    variants.find((v) => v.id === mappedId) ||
++    variants.find(
++      (v) => v.name.toLowerCase() === params.flower.name.toLowerCase()
++    );
++
++  const resolved = resolvePlanVariantPricing({
++    planId: targetPlan.id,
++    billingCycle: targetPlan.billingCycle,
++    weightGrams: params.grams ?? 100,
++    productVariantIdOrName: matchedVariant?.id ?? mappedId,
++    customDeliveriesCount: targetPlan.deliveriesCount,
++    variantsList: variants,
++  });
++
+   const query = new URLSearchParams({
+     plan: targetPlan.slug,
+-    weight: String(weightGrams),
+-    variantId: matchedVariant.id,
+-    flowers: `${weightGrams}g ${matchedVariant.name} (${matchedVariant.marathiName})`,
++    weight: String(resolved.weightGrams),
++    variantId: resolved.variant.id,
++    flowers: `${resolved.weightGrams}g ${resolved.variant.name} (${resolved.variant.marathiName})`,
+   }).toString();
+ 
+   return `/checkout?${query}`;
+-}
+\ No newline at end of file
++}
++
++/**
++ * Builds a /checkout URL for a whole plan (no specific flower), e.g. the
++ * "Subscribe to Weekly / Monthly Plan" button. Same event-handler-only rule
++ * as buildDirectFlowerCheckoutUrl.
++ */
++export function buildPlanCheckoutUrl(planId: string): string {
++  const plan =
++    getActivePlansCatalog().find((p) => p.id === planId) ||
++    INITIAL_PLANS.find((p) => p.id === planId) ||
++    INITIAL_PLANS[0];
++  return `/checkout?${new URLSearchParams({ plan: plan.slug }).toString()}`;
++}

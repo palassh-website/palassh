@@ -301,7 +301,7 @@ export function Footer() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-4 w-4 shrink-0 text-[#F5D0A9]" />
-                  <span>+91 91670 34671 (WhatsApp Desk)</span>
+                  <span>+917710942605 (WhatsApp Desk)</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail className="h-4 w-4 shrink-0 text-[#D95326]" />

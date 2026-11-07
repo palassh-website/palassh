@@ -900,7 +900,7 @@ function MyOrdersContent() {
                                     <strong>Final 2 Days Lockout:</strong>{" "}
                                     {activeSelectedDayObj.dateStr} is within the
                                     final 2 delivery days of your subscription.
-                                    Add-Ons are locked on the last 2 days.
+                                    Add-Ons are locked on the last day.
                                   </span>
                                 </div>
                               ) : activeSelectedDayObj.dateStr <

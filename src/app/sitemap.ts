@@ -14,6 +14,7 @@ const PATHS = [
   "/legal/terms-and-conditions",
   "/legal/refund-policy",
   "/legal/shipping-policy",
+  "/how-it-works"
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

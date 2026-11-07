@@ -58,11 +58,10 @@ export async function sendPalasshOtpEmail(params: {
         <div style="padding: 28px 24px; color: #1C1917; font-family: system-ui, sans-serif;">
           <p style="margin: 0 0 12px; font-size: 15px;">Namaskar,</p>
           <p style="margin: 0 0 20px; font-size: 14px; color: #57534E; line-height: 1.6;">
-            Use the 6-digit verification code below to verify your email address${
-              params.linkedPhone
-                ? ` and link it with your WhatsApp number <strong>+91 ${params.linkedPhone}</strong>`
-                : ""
-            } on PALASSH:
+            Use the 6-digit verification code below to verify your email address${params.linkedPhone
+        ? ` and link it with your WhatsApp number <strong>+91 ${params.linkedPhone}</strong>`
+        : ""
+      } on PALASSH:
           </p>
           <div style="background: #FFFFFF; border: 2px dashed #D95326; border-radius: 14px; padding: 18px; text-align: center; margin-bottom: 20px;">
             <span style="font-family: Georgia, serif; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1C1917;">
@@ -70,7 +69,7 @@ export async function sendPalasshOtpEmail(params: {
             </span>
           </div>
           <p style="margin: 0; font-size: 12px; color: #78716C;">
-            Valid for 10 minutes • Support: +91 91670 34671
+            Valid for 10 minutes • Support: +917710942605
           </p>
         </div>
       </div>
@@ -157,45 +156,40 @@ export async function sendOrderConfirmationEmail(params: {
         </div>
         <div style="padding: 28px 24px; color: #1C1917; font-family: system-ui, sans-serif;">
           <span style="display: inline-block; background: #FFF3EC; color: #D95326; border: 1px solid #D95326; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-            ${
-              params.orderType === "SUBSCRIPTION"
-                ? "✓ PLAN ACTIVATED & CONFIRMED"
-                : "✓ MEMBER ORDER CONFIRMED"
-            }
+            ${params.orderType === "SUBSCRIPTION"
+        ? "✓ PLAN ACTIVATED & CONFIRMED"
+        : "✓ MEMBER ORDER CONFIRMED"
+      }
           </span>
           <h2 style="margin: 14px 0 8px; font-family: Georgia, serif; font-size: 22px; color: #1C1917;">
             Namaskar ${params.customerName},
           </h2>
           <p style="margin: 0 0 20px; font-size: 14px; color: #57534E; line-height: 1.6;">
-            Thank you for choosing PALASSH. Your ${
-              params.orderType === "SUBSCRIPTION"
-                ? `<strong>${params.planTitle}</strong> subscription is now <strong>ACTIVE</strong>`
-                : "member flower order is confirmed"
-            }. This is your one-time confirmation receipt containing your complete delivery schedule.
+            Thank you for choosing PALASSH. Your ${params.orderType === "SUBSCRIPTION"
+        ? `<strong>${params.planTitle}</strong> subscription is now <strong>ACTIVE</strong>`
+        : "member flower order is confirmed"
+      }. This is your one-time confirmation receipt containing your complete delivery schedule.
           </p>
 
           <div style="background: #FFFFFF; border: 1px solid #E6DEC8; border-radius: 16px; padding: 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.8;">
             <div><strong>Order ID:</strong> #${params.orderId}</div>
-            <div><strong>Plan / Type:</strong> ${params.planTitle} (${
-      params.totalDeliveries
-    } ${params.totalDeliveries === 1 ? "Morning Delivery" : "Morning Deliveries"})</div>
+            <div><strong>Plan / Type:</strong> ${params.planTitle} (${params.totalDeliveries
+      } ${params.totalDeliveries === 1 ? "Morning Delivery" : "Morning Deliveries"})</div>
             <div><strong>Selected Flowers:</strong> ${params.flowerSelection}</div>
             <div><strong>Amount Paid:</strong> ₹${params.amountPaid.toLocaleString(
-              "en-IN"
-            )} (Prepaid)</div>
+        "en-IN"
+      )} (Prepaid)</div>
             <hr style="border: 0; border-top: 1px dashed #E6DEC8; margin: 10px 0;" />
-            <div style="color: #D95326;"><strong>First Delivery Date:</strong> ${
-              params.firstDeliveryDate
-            } (6:00 AM – 8:00 AM)</div>
-            <div style="color: #1C1917;"><strong>Last Delivery Date:</strong> ${
-              params.lastDeliveryDate
-            } (6:00 AM – 8:00 AM)</div>
+            <div style="color: #D95326;"><strong>First Delivery Date:</strong> ${params.firstDeliveryDate
+      } (6:00 AM – 8:00 AM)</div>
+            <div style="color: #1C1917;"><strong>Last Delivery Date:</strong> ${params.lastDeliveryDate
+      } (6:00 AM – 8:00 AM)</div>
             <div><strong>Delivery Address:</strong> ${params.addressSnapshot}</div>
           </div>
 
           <div style="background: #F3ECE1; border: 1px solid #E6DEC8; border-radius: 14px; padding: 14px 16px; font-size: 12px; color: #44403C;">
             <strong>Need Help or WhatsApp Support?</strong><br />
-            Contact Us: <strong>+91 91670 34671</strong> (Call / WhatsApp)<br />
+            Contact Us: <strong>+917710942605</strong> (Call / WhatsApp)<br />
             You can pause deliveries or add a doorstep note anytime before 8:00 PM from the <strong>My Orders</strong> calendar on palassh.com.
           </div>
         </div>

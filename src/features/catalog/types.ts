@@ -1,4 +1,4 @@
-export interface FlowerProduct {
+﻿export interface FlowerProduct {
   id: string;
   slug: string;
   name: string;
@@ -431,7 +431,7 @@ export const INITIAL_PLANS: SubscriptionPlan[] = [
     features: [
       "Choose from 7 Flower Varieties in 100g or 150g daily pouches",
       "Pause up to 2 deliveries before 8:00 PM (Days carry forward)",
-      "Subscriber Add-On Access: Order 100g or 150g extra flower pack (up to 2 days before plan ends)",
+      "Subscriber Add-On Access: Order 100g or 150g extra flower pack (except on the final delivery day of your plan)",
     ],
     festiveMaxGramsLimit: 150,
   },
@@ -464,7 +464,7 @@ export const INITIAL_PLANS: SubscriptionPlan[] = [
       "Full 30-Day Interactive Calendar Schedule in My-Orders",
       "Choose 100g or 150g across all 7 Marigold, Pooja & Shevanti varieties",
       "Pause up to 5 deliveries before 8:00 PM (Days carry forward)",
-      "Subscriber Add-On Access: Order 100g or 150g extra flower pack (up to 2 days before plan ends)",
+      "Subscriber Add-On Access: Order 100g or 150g extra flower pack (except on the final delivery day of your plan)",
     ],
     festiveMaxGramsLimit: 150,
   },
@@ -941,25 +941,24 @@ export function getSubscriberAddonWindow(params: {
   blockReason?: string;
 } {
   const dates = [...params.scheduledDatesSorted].sort();
-  if (dates.length <= 2) {
+  if (dates.length <= 1) {
     return {
       canBookAnyAddon: false,
       eligibleDates: [],
       lockedLastTwoDates: dates,
       maxAllowedAddonDate: null,
       blockReason:
-        "Add-Ons Locked: Less than 3 deliveries remain in your subscription plan.",
+        "Add-Ons Locked: Only the final delivery day remains in your subscription plan.",
     };
   }
 
   // Last 2 scheduled delivery dates of the plan are strictly locked for Add-Ons
-  const lockedLastTwoDates = dates.slice(-2);
-  const datesExcludingLastTwo = dates.slice(0, -2);
+  const lockedLastTwoDates = dates.slice(-1);
+  const datesExcludingLastDay = dates.slice(0, -1);
   const maxAllowedAddonDate =
-    datesExcludingLastTwo[datesExcludingLastTwo.length - 1] || null;
-
+    datesExcludingLastTwoFallback(datesExcludingLastDay);
   // Filter by 1-Day Farm Buffer (date >= Today + 2 Days)
-  const eligibleDates = datesExcludingLastTwo.filter(
+  const eligibleDates = datesExcludingLastDay.filter(
     (d) => d >= params.earliestBufferDate
   );
 
@@ -970,7 +969,7 @@ export function getSubscriberAddonWindow(params: {
       lockedLastTwoDates,
       maxAllowedAddonDate,
       blockReason:
-        "Add-On Window Closed: Your subscription is in its final 2 delivery days (or within the 1-day harvest buffer of the last 2 days). Renew your plan to book new Add-Ons!",
+        "Add-On Window Closed: Your subscription has reached its final delivery day. Renew your plan to book new Add-Ons!",
     };
   }
 
@@ -980,6 +979,9 @@ export function getSubscriberAddonWindow(params: {
     lockedLastTwoDates,
     maxAllowedAddonDate,
   };
+}
+function datesExcludingLastTwoFallback(arr: string[]): string | null {
+  return arr[arr.length - 1] || null;
 }
 
 /**
@@ -1021,4 +1023,48 @@ export function validateDirectFlowerPurchaseLimit(
   }
 
   return { allowed: true, maxGrams: 150 };
+}
+
+/**
+ * Builds a pre-filled /checkout URL for any FlowerProduct & weight (100g / 150g)
+ * so non-subscribers clicking a flower card on "/" or "/products" go straight to
+ * Checkout with that exact flower variety and weight selected.
+ */
+export function buildDirectFlowerCheckoutUrl(params: {
+  flower: FlowerProduct;
+  grams?: number;
+  planSlug?: string;
+}): string {
+  const variants = getActivePlanVariants();
+  const plans = getActivePlansCatalog();
+
+  // Map flw-* ID or flower name to the corresponding prod-* PlanProductVariant
+  const mappedId = params.flower.id.replace(/^flw-/, "prod-");
+  const matchedVariant =
+    variants.find(
+      (v) =>
+        v.id === mappedId ||
+        v.name.toLowerCase() === params.flower.name.toLowerCase()
+    ) ||
+    variants[0] ||
+    PLAN_PRODUCT_VARIANTS[0];
+
+  const weightGrams =
+    params.grams === 150 || params.grams === 100 ? params.grams : 100;
+
+  // Default to the 1-Day trial plan (or matched planSlug) so the user can also switch to Weekly/Monthly on Checkout
+  const targetPlan =
+    plans.find((p) => p.slug === params.planSlug) ||
+    plans.find((p) => p.id === "plan-daily") ||
+    plans[0] ||
+    INITIAL_PLANS[0];
+
+  const query = new URLSearchParams({
+    plan: targetPlan.slug,
+    weight: String(weightGrams),
+    variantId: matchedVariant.id,
+    flowers: `${weightGrams}g ${matchedVariant.name} (${matchedVariant.marathiName})`,
+  }).toString();
+
+  return `/checkout?${query}`;
 }
