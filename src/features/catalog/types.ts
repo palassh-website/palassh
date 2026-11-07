@@ -1026,45 +1026,68 @@ export function validateDirectFlowerPurchaseLimit(
 }
 
 /**
- * Builds a pre-filled /checkout URL for any FlowerProduct & weight (100g / 150g)
- * so non-subscribers clicking a flower card on "/" or "/products" go straight to
- * Checkout with that exact flower variety and weight selected.
+ * Builds a pre-filled /checkout URL for a flower card, so a visitor without an
+ * active plan goes straight to Checkout with that flower and weight selected
+ * instead of being sent to the plan cards on the homepage.
+ *
+ * The 1-Day plan is pre-selected by default; the user can still switch to
+ * Weekly / Monthly on Checkout. Weight and variant are validated with
+ * resolvePlanVariantPricing (the same resolver Checkout and PlanCards use), so
+ * the URL always matches what Checkout will actually show.
+ *
+ * Call it from event handlers, not during render: plan and variant data can
+ * come from localStorage, which would differ between server and first client
+ * render and cause a hydration mismatch.
  */
 export function buildDirectFlowerCheckoutUrl(params: {
   flower: FlowerProduct;
   grams?: number;
   planSlug?: string;
 }): string {
-  const variants = getActivePlanVariants();
   const plans = getActivePlansCatalog();
-
-  // Map flw-* ID or flower name to the corresponding prod-* PlanProductVariant
-  const mappedId = params.flower.id.replace(/^flw-/, "prod-");
-  const matchedVariant =
-    variants.find(
-      (v) =>
-        v.id === mappedId ||
-        v.name.toLowerCase() === params.flower.name.toLowerCase()
-    ) ||
-    variants[0] ||
-    PLAN_PRODUCT_VARIANTS[0];
-
-  const weightGrams =
-    params.grams === 150 || params.grams === 100 ? params.grams : 100;
-
-  // Default to the 1-Day trial plan (or matched planSlug) so the user can also switch to Weekly/Monthly on Checkout
   const targetPlan =
     plans.find((p) => p.slug === params.planSlug) ||
     plans.find((p) => p.id === "plan-daily") ||
     plans[0] ||
     INITIAL_PLANS[0];
 
+  // Catalog flowers are "flw-*"; plan variants are "prod-*" with the same suffix.
+  const variants = getActivePlanVariants();
+  const mappedId = params.flower.id.replace(/^flw-/, "prod-");
+  const matchedVariant =
+    variants.find((v) => v.id === mappedId) ||
+    variants.find(
+      (v) => v.name.toLowerCase() === params.flower.name.toLowerCase()
+    );
+
+  const resolved = resolvePlanVariantPricing({
+    planId: targetPlan.id,
+    billingCycle: targetPlan.billingCycle,
+    weightGrams: params.grams ?? 100,
+    productVariantIdOrName: matchedVariant?.id ?? mappedId,
+    customDeliveriesCount: targetPlan.deliveriesCount,
+    variantsList: variants,
+  });
+
   const query = new URLSearchParams({
     plan: targetPlan.slug,
-    weight: String(weightGrams),
-    variantId: matchedVariant.id,
-    flowers: `${weightGrams}g ${matchedVariant.name} (${matchedVariant.marathiName})`,
+    weight: String(resolved.weightGrams),
+    variantId: resolved.variant.id,
+    flowers: `${resolved.weightGrams}g ${resolved.variant.name} (${resolved.variant.marathiName})`,
   }).toString();
 
   return `/checkout?${query}`;
+}
+
+/**
+ * Builds a /checkout URL for a whole plan (no specific flower), e.g. the
+ * "Subscribe to Weekly / Monthly Plan" button. Same event-handler-only rule
+ * as buildDirectFlowerCheckoutUrl.
+ */
+export function buildPlanCheckoutUrl(planId: string): string {
+  const plan =
+    getActivePlansCatalog().find((p) => p.id === planId) ||
+    INITIAL_PLANS.find((p) => p.id === planId) ||
+    INITIAL_PLANS[0];
+  return `/checkout?${new URLSearchParams({ plan: plan.slug }).toString()}`;
 }

@@ -45,6 +45,7 @@ import {
   getCurrentCustomerTier,
   getFestiveModeStatus,
   validateDirectFlowerPurchaseLimit,
+  buildDirectFlowerCheckoutUrl,
 } from "@/features/catalog/types";
 import {
   HeroSlideBanner,
@@ -364,6 +365,18 @@ export default function HomePage() {
     toastTimerRef.current = setTimeout(() => {
       setPopupToast((prev) => ({ ...prev, visible: false }));
     }, 4500);
+  };
+
+  // Visitors without an active plan go straight to Checkout with the chosen
+  // flower and weight (1-Day plan pre-selected, switchable there) instead of
+  // being scrolled up to the plan cards.
+  const goToCheckoutWithFlower = (flower: FlowerProduct) => {
+    const weightIdx = selectedWeightIdxByFlower[flower.id] || 0;
+    const weightObj =
+      flower.availableWeights[weightIdx] || flower.availableWeights[0];
+    router.push(
+      buildDirectFlowerCheckoutUrl({ flower, grams: weightObj?.grams })
+    );
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
@@ -769,7 +782,7 @@ export default function HomePage() {
                     isUplifted={isCardUplifted}
                     onClick={() => {
                       if (isLockedForNonPlanUser) {
-                        scrollToPlans();
+                        goToCheckoutWithFlower(flower);
                         return;
                       }
                       setUpliftedFlowerId((prev) =>
@@ -873,11 +886,14 @@ export default function HomePage() {
                       {isLockedForNonPlanUser ? (
                         <button
                           type="button"
-                          onClick={(e) => scrollToPlans(e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToCheckoutWithFlower(flower);
+                          }}
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FAF6F0] border border-[#E6DEC8] hover:border-[#D95326] py-3.5 px-3 text-xs font-bold text-stone-800 hover:text-[#D95326] transition cursor-pointer"
                         >
-                          <Lock className="h-3.5 w-3.5 text-[#D95326]" />
-                          <span>Plan Members Only • Choose a Plan</span>
+                          <ShoppingBag className="h-3.5 w-3.5 text-[#D95326]" />
+                          <span>Subscribe & Order {selectedWeight.grams}g</span>
                         </button>
                       ) : (
                         <div className="grid grid-cols-2 gap-2.5">

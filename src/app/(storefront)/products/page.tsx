@@ -27,6 +27,8 @@ import {
   getCurrentCustomerTier,
   getEarliestDeliveryDateString,
   getSubscriberAddonWindow,
+  buildDirectFlowerCheckoutUrl,
+  buildPlanCheckoutUrl,
 } from "@/features/catalog/types";
 
 export default function AllProductsPage() {
@@ -330,13 +332,14 @@ export default function AllProductsPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2.5 shrink-0">
-                <Link
-                  href="/#plans"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] px-6 py-3.5 text-xs font-bold text-white shadow-sm transition"
+                <button
+                  type="button"
+                  onClick={() => router.push(buildPlanCheckoutUrl("plan-weekly"))}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] px-6 py-3.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
                 >
                   <span>Subscribe to Weekly / Monthly Plan</span>
                   <ArrowRight className="h-4 w-4" />
-                </Link>
+                </button>
                 <Link
                   href="/my-orders"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#E6DEC8] bg-white px-5 py-3.5 text-xs font-bold text-stone-800 hover:border-[#D95326]"
@@ -521,13 +524,25 @@ export default function AllProductsPage() {
                           <span>Currently Out of Stock</span>
                         </button>
                       ) : isLocked ? (
-                        <Link
-                          href="/#plans"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              buildDirectFlowerCheckoutUrl({
+                                flower,
+                                grams: selectedGrams,
+                              })
+                            )
+                          }
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FAF6F0] border border-[#E6DEC8] hover:border-[#D95326] py-4 text-xs font-bold text-stone-800 hover:text-[#D95326] transition cursor-pointer"
                         >
-                          <Lock className="h-4 w-4 text-[#D95326]" />
-                          <span>Weekly / Monthly Subscribers Only</span>
-                        </Link>
+                          <ShoppingBag className="h-4 w-4 text-[#D95326]" />
+                          <span>
+                            {isWeeklyOrMonthly
+                              ? `Add-Ons Closed • Renew with ${selectedGrams}g`
+                              : `Subscribe & Order ${selectedGrams}g`}
+                          </span>
+                        </button>
                       ) : (
                         <div className="grid grid-cols-2 gap-2.5">
                           <button
