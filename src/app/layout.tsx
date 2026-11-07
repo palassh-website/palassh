@@ -103,7 +103,7 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
   image: "https://palassh.com/images/hero-banner.webp",
   description:
     "Farm-to-Mandir morning puja flower subscription service in Thane delivering 100g and 150g pouches of Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti between 6:00 AM and 8:00 AM.",
-  telephone: "+919167034671",
+  telephone: "+917710942605",
   email: "care@palassh.com",
   address: {
     "@type": "PostalAddress",

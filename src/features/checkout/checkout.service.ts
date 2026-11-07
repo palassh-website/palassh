@@ -332,16 +332,16 @@ export async function validateAndCalculateOrderServerSide(input: {
   if (windowCheck.lockedLastTwoDates.includes(input.deliveryDate)) {
     return {
       valid: false,
-      error: `Last Day Lockout: ${input.deliveryDate} is one of the final delivery day of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
+      error: `Final Day Lockout: ${input.deliveryDate} is the last delivery day of your current plan. Add-Ons are only allowed up to ${windowCheck.maxAllowedAddonDate}.`,
       amountInRupees: 0,
       totalGrams: 0,
     };
   }
-
+  
   if (!windowCheck.eligibleDates.includes(input.deliveryDate)) {
     return {
       valid: false,
-      error: `Final Day Lockout: ${input.deliveryDate} is the last delivery day of your current plan. Add-Ons are allowed up to ${windowCheck.maxAllowedAddonDate}.`,
+      error: `Invalid Add-On Date: Please select an active scheduled delivery date from your plan between ${windowCheck.eligibleDates[0]} and ${windowCheck.maxAllowedAddonDate}.`,
       amountInRupees: 0,
       totalGrams: 0,
     };

@@ -11,7 +11,7 @@ export function WhatsAppFloatingButton() {
     return null;
   }
 
-  const phoneNumber = "919167034671";
+  const phoneNumber = "7710942605";
   const defaultMessage = encodeURIComponent(
     "Hello PALASSH, I Vistied Your website and i need your help about :"
   );

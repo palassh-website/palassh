@@ -404,7 +404,7 @@ export default function HowSubscriptionWorksPage() {
                                 </p>
                             </div>
                             <a
-                                href="https://wa.me/919167034671"
+                                href="https://wa.me/7710942605"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 rounded-xl bg-[#D95326] hover:bg-[#BA421B] px-5 py-3 text-xs font-bold text-white shadow-xs shrink-0 transition"

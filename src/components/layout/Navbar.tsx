@@ -418,12 +418,12 @@ export function Navbar() {
                           <span>Plan Members Only</span>
                         </p>
                         <p className="mt-1 text-[11px] text-stone-600">
-                          Only customers who have purchased a 1 Day, Weekly, or
+                          Only customers who have purchased Weekly, or
                           Monthly Plan can buy loose flowers.
                         </p>
                       </div>
                       <Link
-                        href="/#plans"
+                        href="/checkout?plan=weekly-pack"
                         onClick={() => setIsCartOpen(false)}
                         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#D95326] hover:bg-[#BA421B] py-4 text-sm font-bold text-white shadow-sm cursor-pointer transition"
                       >

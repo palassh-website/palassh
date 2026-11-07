@@ -105,7 +105,7 @@ export async function sendPalasshOtpEmail(params: {
 /**
  * Point #6: Sends a ONE-TIME Plan Activation / Order Confirmation Email to the customer
  * when they purchase a plan or loose flower order.
- * Displays Plan Activation Status, First Delivery Date, Last Delivery Date, and Contact (+919167034671).
+ * Displays Plan Activation Status, First Delivery Date, Last Delivery Date, and Contact (+917710942605+).
  */
 export async function sendOrderConfirmationEmail(params: {
   toEmail: string;
