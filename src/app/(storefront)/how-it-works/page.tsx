@@ -91,18 +91,18 @@ const STEPS = [
     {
         stepNo: "05",
         badge: "Total Control & Member Perks",
-        title: "Pause Anytime Before 8 PM & Unlock Extra Add-On Flowers",
+        title: "Unlock Extra Add-On Flowers",
         subtitle:
-            "Going out of station or hosting a special puja at home? Manage everything from your phone.",
+            "want to buy more flowers ? you can easily purchase when you subscribe weekly or monthly plan.",
         imageUrl: "/images/unlock.webp",
         icon: CalendarCheck,
         highlights: [
-            "1-Click Calendar Pause: Pause up to 2 days (Weekly Plan) or 5 days (Monthly Plan) before 8:00 PM IST—your paused days automatically carry forward!",
+            "You can purchase more flowers with your running plan with free delivery charges.",
             "Exclusive Member Flower Store: Active Weekly & Monthly subscribers can order extra 100g or 150g loose flower Add-On packs on any active plan day (except the final delivery day of your plan).",
             "Add custom doorstep instructions anytime from your My Orders dashboard.",
         ],
-        ctaText: "Open My Orders Calendar",
-        ctaHref: "/my-orders",
+        ctaText: "Add more Flowers",
+        ctaHref: "/products",
     },
 ];
 

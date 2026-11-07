@@ -279,6 +279,14 @@ export function Footer() {
                     Privacy & Terms
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/how-it-works"
+                    className="hover:text-white transition"
+                  >
+                    How Subscription Works ?
+                  </Link>
+                </li>
               </ul>
             </div>
 
