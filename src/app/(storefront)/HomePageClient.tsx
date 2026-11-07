@@ -66,7 +66,7 @@ const FAQS = [
   {
     tag: "Member-Only Loose Flower Add-Ons",
     q: "Who can purchase loose flower Add-On packs from the flower store?",
-    a: "Loose flower Add-On shopping (100g or 150g packs) is unlocked exclusively for active Weekly and Monthly Plan subscribers (up to 2 days before your plan ends).",
+    a: "Loose flower Add-On shopping (100g or 150g packs) is unlocked exclusively for active Weekly and Monthly Plan subscribers (up to last day before your plan ends).",
   },
   {
     tag: "7 Varieties in 100g & 150g",

@@ -505,7 +505,7 @@ function MyOrdersContent() {
             <p className="text-xs sm:text-sm text-stone-600">
               Tap any delivery date below to pause deliveries or book an extra{" "}
               <strong className="text-[#D95326]">100g / 150g Add-On Pack</strong>{" "}
-              (with 1-day farm buffer, up to 2 days before your plan ends).
+              (with 1-day farm buffer, up to 1 day before your plan ends).
             </p>
           </div>
 
@@ -658,7 +658,7 @@ function MyOrdersContent() {
                             <strong className="text-[#D95326]">
                               {addonWindow.maxAllowedAddonDate}
                             </strong>{" "}
-                            (Final 2 days locked).
+                            (Final 1 day locked).
                           </span>
                         ) : (
                           <span className="text-rose-700 font-semibold">
@@ -897,7 +897,7 @@ function MyOrdersContent() {
                                 <div className="rounded-xl bg-white border border-[#E6DEC8] p-3 text-xs text-stone-600 flex items-start gap-2">
                                   <Lock className="h-4 w-4 text-[#D95326] shrink-0 mt-0.5" />
                                   <span>
-                                    <strong>Final 2 Days Lockout:</strong>{" "}
+                                    <strong>Final 1 Day Lockout:</strong>{" "}
                                     {activeSelectedDayObj.dateStr} is within the
                                     final 2 delivery days of your subscription.
                                     Add-Ons are locked on the last day.

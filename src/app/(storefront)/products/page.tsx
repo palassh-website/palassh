@@ -295,7 +295,7 @@ export default function AllProductsPage() {
                 </strong>{" "}
                 can order <strong className="text-[#D95326]">100 gms</strong> or{" "}
                 <strong className="text-[#D95326]">150 gms</strong> additional
-                loose flowers per day (with 1-day farm buffer, up to 2 days
+                loose flowers per day (with 1-day farm buffer, up to 1 day
                 before plan ends).
               </p>
             </div>
@@ -353,7 +353,7 @@ export default function AllProductsPage() {
               <Lock className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-serif text-lg font-bold text-rose-900">
-                  Final 2 Days Lockout — Add-On Window Closed for Current Plan
+                  Final 1 Day Lockout — Add-On Window Closed for Current Plan
                 </p>
                 <p className="text-xs sm:text-sm text-rose-800">
                   {addonWindow.blockReason}

@@ -1058,7 +1058,7 @@ function CheckoutContent() {
                 <div className="rounded-2xl border border-[#E6DEC8] bg-[#FAF6F0] p-4 space-y-2">
                   <label className="block text-xs font-bold text-stone-800">
                     {isOneTimeCartCheckout
-                      ? "Select Add-On Delivery Date (Excludes Final 2 Days of Plan) *"
+                      ? "Select Add-On Delivery Date (Excludes Final 1 Day of Plan) *"
                       : "First Morning Delivery Date (6:00 AM – 8:00 AM) *"}
                   </label>
                   {isOneTimeCartCheckout &&
