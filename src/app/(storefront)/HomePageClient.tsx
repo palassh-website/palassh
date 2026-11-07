@@ -23,6 +23,7 @@ import {
   Zap,
   Lock,
 } from "lucide-react";
+import {buildPlanCheckoutUrl} from "@/features/catalog/types";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
 import { PincodeBox } from "@/features/pincode-checker/components/PincodeBox";
 import { PlanCards } from "@/features/catalog/components/PlanCards";
@@ -707,9 +708,9 @@ export default function HomePage() {
                 <p className="text-xs sm:text-base text-stone-600">
                   Customers who have purchased any{" "}
                   <strong className="text-stone-900">
-                    1 Day, Weekly, or Monthly Plan
+                   Weekly, or Monthly Plan
                   </strong>{" "}
-                  can order extra flower weight packs (100g, 150g, 250g, 500g)
+                  can order extra flower weight packs (100g, 150g,or more)
                   anytime.
                 </p>
               </div>
@@ -731,37 +732,36 @@ export default function HomePage() {
           </ScrollReveal>
 
           {isLockedForNonPlanUser && (
-            <ScrollReveal variant="fade-lift">
-              <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-[#E6DEC8] bg-[#FFF3EC] p-5 text-stone-900 shadow-xs">
-                <div
-                  onClick={(e) => scrollToPlans(e)}
-                  className="flex items-center gap-3.5 cursor-pointer group"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#D95326] text-white">
-                    <Lock className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-stone-900">
-                      Plan Members Only — Normal User Loose Shopping Disabled
-                    </p>
-                    <p className="text-[11px] text-stone-600 mt-0.5">
-                      Subscribe to any 1 Day (from ₹45), Weekly (from ₹299), or
-                      Monthly (from ₹1,249) plan above to unlock loose flower
-                      shopping!
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => scrollToPlans(e)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#D95326] hover:bg-[#BA421B] px-5 py-2.5 text-xs font-bold text-white shadow-xs transition whitespace-nowrap self-start sm:self-auto shrink-0 cursor-pointer"
-                >
-                  <span>Choose a Plan First</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </ScrollReveal>
-          )}
+       <ScrollReveal variant="fade-lift">
+         <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-[#E6DEC8] bg-[#FFF3EC] p-5 text-stone-900 shadow-xs">
+           <div
+             onClick={() => router.push(buildPlanCheckoutUrl("plan-weekly"))}
+             className="flex items-center gap-3.5 cursor-pointer group"
+           >
+             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#D95326] text-white">
+               <Lock className="h-5 w-5" />
+             </div>
+             <div>
+               <p className="text-xs sm:text-sm font-bold text-stone-900">
+                 Weekly & Monthly Subscribers Only — Add-On Shopping Locked
+               </p>
+               <p className="text-[11px] text-stone-600 mt-0.5">
+                 Subscribe to a Weekly (from ₹299) or Monthly (from ₹1,249)
+                 plan to unlock 100g & 150g loose flower Add-Ons!
+               </p>
+             </div>
+           </div>
+           <button
+             type="button"
+             onClick={() => router.push(buildPlanCheckoutUrl("plan-weekly"))}
+             className="inline-flex items-center gap-1.5 rounded-full bg-[#D95326] hover:bg-[#BA421B] px-5 py-2.5 text-xs font-bold text-white shadow-xs transition whitespace-nowrap self-start sm:self-auto shrink-0 cursor-pointer"
+           >
+             <span>Subscribe to Weekly / Monthly Plan</span>
+             <ArrowRight className="h-3.5 w-3.5" />
+           </button>
+         </div>
+       </ScrollReveal>
+     )}
 
           <div className="mt-10 sm:mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
             {homepageFlowers.map((flower, idx) => {

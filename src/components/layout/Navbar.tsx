@@ -46,10 +46,10 @@ export function Navbar() {
     fetch("/api/orders", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        if (data?.authenticated && data?.customer?.activeTier) {
-          setCustomerTier(data.customer.activeTier);
-        }
-      })
+        if (data?.activeSubscription) 
+        localStorage.setItem("palassh_active_subscription",
+       JSON.stringify(data.activeSubscription));
+  })
       .catch(() => { });
 
     const handleOpenDrawer = () => {

@@ -93,15 +93,24 @@ export default function AllProductsPage() {
     syncAll();
 
     fetch("/api/orders", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.authenticated && data?.customer?.activeTier) {
-          setCustomerTier(data.customer.activeTier);
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.authenticated && data?.customer?.activeTier) {
+        setCustomerTier(data.customer.activeTier);
+      }
+      if (
+        data?.activeSubscription &&
+        data.activeSubscription.status === "ACTIVE"
+      ) {
+        try {
+          localStorage.setItem(
+            "palassh_active_subscription",
+            JSON.stringify(data.activeSubscription)
+          );
+        } catch {
+          // Ignore
         }
-        if (
-          data?.activeSubscription &&
-          Array.isArray(data.activeSubscription.calendarDays)
-        ) {
+        if (Array.isArray(data.activeSubscription.calendarDays)) {
           const activeDates = data.activeSubscription.calendarDays
             .filter((d: { status: string }) => d.status === "SCHEDULED")
             .map((d: { dateStr: string }) => d.dateStr)
@@ -115,8 +124,9 @@ export default function AllProductsPage() {
             setSelectedAddonDate(win.eligibleDates[0]);
           }
         }
-      })
-      .catch(() => {});
+      }
+    })
+    .catch(() => {});
 
     window.addEventListener("palassh-cart-updated", syncAll);
     window.addEventListener("storage", syncAll);
