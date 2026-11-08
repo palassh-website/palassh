@@ -44,7 +44,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "6. Flower Quality Replacement",
-        body: "If a flower pouch ever arrives damaged, the customer can raise a complaint on WhatsApp (+917710942605) within 2 hours of morning delivery for a free replacement. A replacement may take some time.",
+        body: "If a flower pouch ever arrives damaged, the customer can raise a complaint on WhatsApp (+91 77109 42605) within 2 hours of morning delivery for a free replacement. A replacement may take some time.",
       },
     ],
   },
@@ -80,7 +80,7 @@ const LEGAL_CONTENT: Record<
       },
       {
         heading: "2. Freshness Replacement Guarantee",
-        body: "Because fresh flowers are perishable botanical items dispatched fresh from farms at 8:00 PM for morning delivery, we do not accept physical returns. However, if your morning pouch arrives damaged, share a photo on WhatsApp (+917710942605) within 2 hours of delivery for a free replacement.",
+        body: "Because fresh flowers are perishable botanical items dispatched fresh from farms at 8:00 PM for morning delivery, we do not accept physical returns. However, if your morning pouch arrives damaged, share a photo on WhatsApp (+91 77109 42605) within 2 hours of delivery for a free replacement.",
       },
     ],
   },
@@ -185,7 +185,7 @@ export default async function LegalPage({
               <Clock className="h-4 w-4" />
               <span>
                 Morning Delivery Slot: 6:00 AM – 8:00 AM • Evening Modification
-                Cut-off: 8:00 PM • Support: +917710942605
+                Cut-off: 8:00 PM • Support: +91 77109 42605
               </span>
             </div>
           </div>

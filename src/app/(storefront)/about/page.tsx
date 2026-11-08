@@ -20,6 +20,7 @@ import {
   SubscriptionPlan,
   getActivePlansCatalog,
 } from "@/features/catalog/types";
+import { OFFICIAL_WHATSAPP_DISPLAY, getWhatsAppUrl } from "@/lib/whatsapp";
 
 const SHOP_ADDRESS =
   "6X4X+HJ5 Glenmark Residency, 60 Feet Rd, Kharegaon, Kalwa, Thane, Maharashtra 400605";
@@ -352,10 +353,15 @@ export default function AboutUsPage() {
                   <CheckCircle2 className="h-4 w-4 text-[#D95326]" />
                   Single Slot: 6:00 AM – 8:00 AM
                 </span>
-                <span className="flex items-center gap-1.5">
+                <a
+                  href={getWhatsAppUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 hover:text-[#D95326] transition"
+                >
                   <PhoneCall className="h-4 w-4 text-[#D95326]" />
-                  Support:7710942605
-                </span>
+                  <span>Support: {OFFICIAL_WHATSAPP_DISPLAY}</span>
+                </a>
               </div>
             </div>
 

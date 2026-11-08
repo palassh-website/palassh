@@ -16,6 +16,7 @@ import {
   SubscriptionPlan,
   getActivePlansCatalog,
 } from "@/features/catalog/types";
+import { OFFICIAL_WHATSAPP_DISPLAY, getWhatsAppUrl } from "@/lib/whatsapp";
 
 export function Footer() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>(INITIAL_PLANS);
@@ -309,7 +310,14 @@ export function Footer() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-4 w-4 shrink-0 text-[#F5D0A9]" />
-                  <span>+917710942605 (WhatsApp Desk)</span>
+                  <a
+                    href={getWhatsAppUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition"
+                  >
+                    {OFFICIAL_WHATSAPP_DISPLAY} (WhatsApp Desk)
+                  </a>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail className="h-4 w-4 shrink-0 text-[#D95326]" />

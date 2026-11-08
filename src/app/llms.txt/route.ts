@@ -78,7 +78,7 @@ export async function GET() {
 - **Website:** https://palassh.com
 - **Brand Name:** PALASSH Flowers (पलाश)
 - **Founders:** Mrs. Ankita Jagtap & Mr. Pratik Jagtap
-- **Customer Support / WhatsApp Concierge:** +917710942605
+- **Customer Support / WhatsApp Concierge:** +91 77109 42605 (https://wa.me/917710942605)
 - **Official Email:** care@palassh.com
 - **Main Sorting & Dispatch Hub:** 6X4X+HJ5 Glenmark Residency, 60 Feet Rd, Kharegaon, Kalwa, Thane, Maharashtra 400605, India
 - **Morning Delivery Window:** 6:00 AM – 8:00 AM IST daily (Silent Doorstep Drop on main door handle — zero doorbell ringing)

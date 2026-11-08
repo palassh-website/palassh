@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { getEnvConfig } from "./env";
 import { logger, startTimer } from "./logger";
+import { OFFICIAL_WHATSAPP_DISPLAY, getWhatsAppUrl } from "./whatsapp";
 
 export function maskEmailAddress(email: string): string {
   const [local, domain] = email.trim().split("@");
@@ -69,7 +70,7 @@ export async function sendPalasshOtpEmail(params: {
             </span>
           </div>
           <p style="margin: 0; font-size: 12px; color: #78716C;">
-            Valid for 10 minutes • Support: +917710942605
+            Valid for 10 minutes • Support: <a href="${getWhatsAppUrl()}" style="color: #D95326; text-decoration: none; font-weight: bold;">${OFFICIAL_WHATSAPP_DISPLAY}</a>
           </p>
         </div>
       </div>
@@ -189,7 +190,7 @@ export async function sendOrderConfirmationEmail(params: {
 
           <div style="background: #F3ECE1; border: 1px solid #E6DEC8; border-radius: 14px; padding: 14px 16px; font-size: 12px; color: #44403C;">
             <strong>Need Help or WhatsApp Support?</strong><br />
-            Contact Us: <strong>+917710942605</strong> (Call / WhatsApp)<br />
+            Contact Us: <a href="${getWhatsAppUrl()}" style="color: #D95326; text-decoration: underline; font-weight: bold;">${OFFICIAL_WHATSAPP_DISPLAY}</a> (WhatsApp / Call)<br />
             You can pause deliveries or add a doorstep note anytime before 8:00 PM from the <strong>My Orders</strong> calendar on palassh.com.
           </div>
         </div>

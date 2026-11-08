@@ -32,6 +32,7 @@ import {
 } from "@/features/catalog/types";
 import { checkPincodeAvailability } from "@/features/pincode-checker/pincode.service";
 import { FeatureBoundary } from "@/components/shared/FeatureBoundary";
+import { OFFICIAL_WHATSAPP_DISPLAY, getWhatsAppUrl } from "@/lib/whatsapp";
 
 declare global {
   interface Window {
@@ -434,7 +435,7 @@ function CheckoutContent() {
         ? ""
         : ` Payment ID: ${paymentPayload.razorpayPaymentId}.`;
       setFormError(
-        `Payment received, but we could not confirm your order yet. ${failureMessage}${idNote} Please do NOT pay again. Check My Orders in a few minutes, or contact support on +917710942605 with your Payment ID.`
+        `Payment received, but we could not confirm your order yet. ${failureMessage}${idNote} Please do NOT pay again. Check My Orders in a few minutes, or contact support on ${OFFICIAL_WHATSAPP_DISPLAY} with your Payment ID.`
       );
       setIsProcessing(false);
       return;
@@ -1240,7 +1241,15 @@ function CheckoutContent() {
                   100% Farm-Fresh Thane Guarantee
                 </p>
                 <p className="text-stone-600">
-                  Support & WhatsApp Desk: <strong>+917710942605</strong>
+                  Support & WhatsApp Desk:{" "}
+                  <a
+                    href={getWhatsAppUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold underline hover:text-[#D95326] transition"
+                  >
+                    {OFFICIAL_WHATSAPP_DISPLAY}
+                  </a>
                 </p>
               </div>
             </div>

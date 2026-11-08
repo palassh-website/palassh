@@ -22,6 +22,7 @@ import {
     SubscriptionPlan,
     getActivePlansCatalog,
 } from "@/features/catalog/types";
+import { OFFICIAL_WHATSAPP_DISPLAY, getWhatsAppUrl } from "@/lib/whatsapp";
 
 const STEPS = [
     {
@@ -404,13 +405,13 @@ export default function HowSubscriptionWorksPage() {
                                 </p>
                             </div>
                             <a
-                                href="https://wa.me/7710942605"
+                                href={getWhatsAppUrl()}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 rounded-xl bg-[#D95326] hover:bg-[#BA421B] px-5 py-3 text-xs font-bold text-white shadow-xs shrink-0 transition"
                             >
                                 <PhoneCall className="h-4 w-4" />
-                                <span>WhatsApp +917710942605</span>
+                                <span>WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}</span>
                             </a>
                         </div>
                     </div>

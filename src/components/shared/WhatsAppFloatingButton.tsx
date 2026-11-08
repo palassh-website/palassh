@@ -2,6 +2,10 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import {
+  OFFICIAL_WHATSAPP_DISPLAY,
+  getWhatsAppUrl,
+} from "@/lib/whatsapp";
 
 export function WhatsAppFloatingButton() {
   const pathname = usePathname();
@@ -11,11 +15,7 @@ export function WhatsAppFloatingButton() {
     return null;
   }
 
-  const phoneNumber = "7710942605";
-  const defaultMessage = encodeURIComponent(
-    "Hello PALASSH, I Vistied Your website and i need your help about :"
-  );
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${defaultMessage}`;
+  const whatsappUrl = getWhatsAppUrl();
 
   return (
     <aside
@@ -38,7 +38,7 @@ export function WhatsAppFloatingButton() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Chat with PALASSH on WhatsApp (+917710942605)"
+        aria-label={`Chat with PALASSH on WhatsApp (${OFFICIAL_WHATSAPP_DISPLAY})`}
         className="peer group relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#1EBE5D] via-[#25D366] to-[#2BE873] text-white shadow-[0_10px_25px_-5px_rgba(37,211,102,0.55)] transition-all duration-300 hover:scale-110 active:scale-95 border-2 border-white/30 cursor-pointer"
       >
         {/* Subtle breathing radar ring */}
@@ -56,4 +56,3 @@ export function WhatsAppFloatingButton() {
     </aside>
   );
 }
-
