@@ -44,13 +44,19 @@ export function Navbar() {
     syncNavbarCart();
 
     fetch("/api/orders", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.activeSubscription) 
-        localStorage.setItem("palassh_active_subscription",
-       JSON.stringify(data.activeSubscription));
-  })
-      .catch(() => { });
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.activeSubscription) {
+        localStorage.setItem(
+          "palassh_active_subscription",
+          JSON.stringify(data.activeSubscription)
+        );
+      }
+      if (data?.authenticated && data?.customer?.activeTier) {
+        setCustomerTier(data.customer.activeTier);
+      }
+    })
+    .catch(() => {});
 
     const handleOpenDrawer = () => {
       syncNavbarCart();

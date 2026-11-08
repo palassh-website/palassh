@@ -97,7 +97,11 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
   "@type": "Florist",
   "@id": "https://palassh.com/#florist",
   name: "PALASSH Flowers",
-  alternateName: "PALASSH — flowers that pray with you",
+  alternateName: [
+    "PALASSH — flowers that pray with you",
+    "Palassh Flowers Thane",
+    "Palassh Puja Flowers",
+  ],
   url: "https://palassh.com",
   logo: "https://palassh.com/images/logo.webp",
   image: "https://palassh.com/images/hero-banner.webp",
@@ -136,6 +140,7 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
     },
   ],
   areaServed: [
+    { "@type": "City", name: "Thane" },
     { "@type": "PostalCodeSpecification", postalCode: "400601", addressCountry: "IN" },
     { "@type": "PostalCodeSpecification", postalCode: "400602", addressCountry: "IN" },
     { "@type": "PostalCodeSpecification", postalCode: "400603", addressCountry: "IN" },
@@ -149,6 +154,18 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
     "https://www.instagram.com/palassh_flowers",
     "https://www.youtube.com/@Palassh-Flowers",
   ],
+};
+
+// Helps Google show "PALASSH" as the site name and tie the brand to this site.
+const WEBSITE_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://palassh.com/#website",
+  url: "https://palassh.com",
+  name: "PALASSH",
+  alternateName: ["Palassh Flowers", "Palassh Flowers Thane"],
+  inLanguage: "en-IN",
+  publisher: { "@id": "https://palassh.com/#florist" },
 };
 
 export default function RootLayout({
@@ -166,6 +183,12 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(THANE_LOCAL_BUSINESS_SCHEMA),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(WEBSITE_SCHEMA),
           }}
         />
       </head>

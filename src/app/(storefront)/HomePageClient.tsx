@@ -84,6 +84,31 @@ const FAQS = [
     q: "How do riders deliver between 6:00 AM – 8:00 AM without disturbing our sleep?",
     a: "We follow a strict Silent Devotion Protocol. Our riders never ring your doorbell or call you in the morning. Your breathable eco-pouch is gently hung on your main door handle.",
   },
+  {
+    tag: "Puja Flowers in Thane",
+    q: "Where can I get fresh puja flowers delivered daily in Thane?",
+    a: "PALASSH delivers fresh Marigold (झेंडू), Pooja Flowers and Shevanti (शेवंती) to homes and societies across Thane pincodes 400601 to 400608, including Thane West, Ghodbunder Road, Kalwa, Pokhran Road, Naupada and Balkum. Pick a 1 Day, Weekly or Monthly plan and your pouch arrives every morning between 6:00 AM – 8:00 AM.",
+  },
+  {
+    tag: "Starting Price",
+    q: "What is the price of a daily puja flower subscription in Thane?",
+    a: "Plans start from ₹45 for a 1 Day, 100g pouch. Weekly and Monthly plans lower the per-day price. The exact price for your chosen flower, weight and plan is shown live on the plan cards before you pay.",
+  },
+  {
+    tag: "Morning Delivery Time",
+    q: "What time are puja flowers delivered in the morning in Thane?",
+    a: "Every delivery day between 6:00 AM and 8:00 AM, so the flowers are fresh when you start your morning puja. They are dispatched from the farm at 8:00 PM the previous evening and are never cold-stored.",
+  },
+  {
+    tag: "Check Your Society",
+    q: "How do I check if PALASSH delivers to my society in Thane?",
+    a: "Enter your 6-digit pincode in the pincode checker on this page. We deliver across Thane pincodes 400601 to 400608, and the checker confirms your route instantly before you subscribe.",
+  },
+  {
+    tag: "ठाणे मराठी माहिती",
+    q: "ठाण्यात रोज पूजेची फुले (झेंडू, शेवंती) घरपोच कुठे मिळतील?",
+    a: "PALASSH ठाण्यातील 400601 ते 400608 पिनकोडमध्ये ताजी झेंडू, शेवंती व पूजेची फुले रोज सकाळी ६:०० ते ८:०० वाजता घरपोच देते. १ दिवस, साप्ताहिक किंवा मासिक प्लॅन निवडा; किंमत ₹४५ पासून सुरू.",
+  },
 ]; const FAQ_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
