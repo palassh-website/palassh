@@ -483,7 +483,12 @@ export default function AdminDashboardPage() {
       mixedPredefinedBreakdown: "100g Mixed Marigold (मिक्स झेंडू)",
       badge: `${count} Mornings Plan`,
       isPopular: false,
-      imageUrl: "/images/monthly.webp",
+      imageUrl:
+        count === 1
+          ? "/images/plan-daily.webp"
+          : count <= 7
+          ? "/images/plan-weekly.webp"
+          : "/images/monthly.webp",
       flowersIncluded: ["All Sacred Flower Varieties Available"],
       shortHighlights: [
         `${count} Morning Deliveries (From ₹${perDay}/day)`,

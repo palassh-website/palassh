@@ -251,9 +251,13 @@ export function PlanCards({
                 >
                   <img
                     src={
-                      plan.id === "plan-monthly" || plan.slug === "monthly-pack"
+                      plan.id === "plan-daily" || plan.slug === "1-day-plan"
+                        ? "/images/plan-daily.webp"
+                        : plan.id === "plan-weekly" || plan.slug === "weekly-pack"
+                        ? "/images/plan-weekly.webp"
+                        : plan.id === "plan-monthly" || plan.slug === "monthly-pack"
                         ? "/images/monthly.webp"
-                        : resolved.variant.imageUrl || plan.imageUrl
+                        : plan.imageUrl || "/images/plan-daily.webp"
                     }
                     alt={plan.title}
                     width={800}
