@@ -239,10 +239,10 @@ export function Footer() {
                 </li>
                 <li className="pt-1">
                   <Link
-                    href="/#plans"
+                    href="/flowers-in-thane"
                     className="inline-flex items-center gap-1.5 text-[#D95326] font-semibold hover:text-white"
                   >
-                    <span>→ Compare All 7 Varieties</span>
+                    <span>→ Browse Available Flower Varieties</span>
                   </Link>
                 </li>
               </ul>
@@ -254,6 +254,11 @@ export function Footer() {
                 Explore & Legal
               </h4>
               <ul className="space-y-3 text-sm text-stone-300">
+                <li>
+                  <Link href="/flowers-in-thane" className="hover:text-white transition">
+                    Flower Catalogue
+                  </Link>
+                </li>
                 <li>
                   <Link href="/about" className="hover:text-white transition">
                     About Us

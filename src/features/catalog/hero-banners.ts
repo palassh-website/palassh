@@ -31,16 +31,16 @@ export function getDynamicHeroBanners(
   return [
     {
       id: "slide-1",
-      badge: "Daily Flower Delivery ",
-      titleLine1: "Sacred Puja Blooms,",
-      titleHighlight: "flowers that pray with you.",
+      badge: "Fresh Flower Home Delivery in Thane",
+      titleLine1: "Fresh Flowers in Thane",
+      titleHighlight: "Delivered to Your Doorstep.",
       subtitle:
-        "Choose from multiple flower varieties in 100 gms or 150 gms across 1 Day, Weekly, and Monthly plans. Hung silently between 6:00 AM – 8:00 AM.",
+        "Browse the available flower varieties, order a one-day morning pack or choose a weekly/monthly plan, and get fresh flowers delivered to your home in serviceable Thane pincodes.",
       imageUrl: "/images/hero-banner.webp",
-      primaryBtnText: `Explore Plans From ${oneDayPrice}`,
+      primaryBtnText: `Order a 1-Day Pack From ${oneDayPrice}`,
       primaryBtnHref: "#plans",
-      secondaryBtnText: "View Flower Varieties",
-      secondaryBtnHref: "#plans",
+      secondaryBtnText: "Browse All Flower Varieties",
+      secondaryBtnHref: "/flowers-in-thane",
       priceTag: `100g Plans: ${oneDayPrice} Day • ${weeklyPrice} Week • ${monthlyPrice} Month`,
     },
     {
@@ -49,7 +49,7 @@ export function getDynamicHeroBanners(
       titleLine1: "Fresh Pooja Flowers",
       titleHighlight: "& with Blessings.",
       subtitle:
-        "Orange Marigold, Yellow Marigold, and White & Yellow Shevanti and lot more flowers available for your Needs.",
+        "Explore the currently listed flower varieties and choose a supported pack for your next morning home delivery.",
       imageUrl: "/images/chrysanthemum.webp",
       primaryBtnText: "Compare 100g & 150g Plans",
       primaryBtnHref: "#plans",

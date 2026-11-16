@@ -105,7 +105,7 @@ export function Navbar() {
   const navLinks = [
     { label: "Home", href: "/" },
     { label: "Subscriptions", href: "/#plans" },
-    { label: "All Flowers", href: "/products" },
+    { label: "Flower Catalogue", href: "/flowers-in-thane" },
     { label: "About Us", href: "/about" },
     { label: "How Plan Works", href: "/how-it-works" },
     { label: "Check Pincode", href: "/#pincode-check", isPin: true },
@@ -181,7 +181,7 @@ export function Navbar() {
                     {item.isPin && (
                       <MapPin className="h-3.5 w-3.5 text-[#D95326]" />
                     )}
-                    {item.href === "/products" && (
+                    {(item.href === "/flowers-in-thane" || item.href === "/products") && (
                       <Flower2 className="h-3.5 w-3.5 text-[#D95326]" />
                     )}
                     <span>{item.label}</span>
@@ -280,6 +280,13 @@ export function Navbar() {
                   ).toLocaleString("en-IN");
                   return `Subscriptions (From ₹${oneDayPrice} / ₹${weeklyPrice} / ₹${monthlyPrice})`;
                 })()}
+              </Link>
+              <Link
+                href="/flowers-in-thane"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-[#F3ECE1]"
+              >
+                Browse Flower Catalogue
               </Link>
               <Link
                 href="/products"

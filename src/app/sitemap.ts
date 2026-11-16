@@ -8,7 +8,7 @@ const BASE_URL = "https://palassh.com";
 
 const PATHS = [
   "",
-  "/products",
+  "/flowers-in-thane",
   "/about",
   "/legal/privacy-policy",
   "/legal/terms-and-conditions",

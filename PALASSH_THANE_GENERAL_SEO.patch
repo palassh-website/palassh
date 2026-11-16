@@ -1,0 +1,512 @@
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 6795139..9c39a02 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -24,7 +24,7 @@ export const metadata: Metadata = {
+   metadataBase: new URL("https://palassh.com"),
+   title: {
+-    default: "Fresh Puja Flower Subscription in Thane | PALASSH",
++    default: "Fresh Flowers in Thane | Home Delivery & 1-Day Orders | PALASSH",
+     template: "%s | PALASSH",
+   },
+   description:
+-    "Daily farm-fresh puja flowers in Thane (400601–400608), delivered silently between 6:00 AM – 8:00 AM. Marigold, Shevanti & Pooja flowers. Plans from ₹45.",
++    "Order fresh flowers online in Thane with home delivery. Explore the live flower catalogue, choose a one-day morning pack or a weekly/monthly plan, and check your delivery pincode.",
+@@ -48,6 +48,6 @@ export const metadata: Metadata = {
+     locale: "en_IN",
+     url: "https://palassh.com",
+     siteName: "PALASSH Flowers Thane",
+-    title: "PALASSH — Morning Puja Flower Subscription in Thane",
++    title: "PALASSH — Fresh Flowers & Home Delivery in Thane",
+     description:
+-      "Fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) in 100g & 150g pouches, hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
++      "Browse available flower varieties, order a one-day pack or choose a recurring plan, and get fresh flowers delivered to your home in serviceable Thane pincodes.",
+@@ -64,5 +64,5 @@ export const metadata: Metadata = {
+   twitter: {
+     card: "summary_large_image",
+-    title: "PALASSH | Morning 6–8 AM Puja Flower Subscription in Thane",
++    title: "PALASSH | Fresh Flowers with Home Delivery in Thane",
+     description:
+-      "100% Zero Cold Storage farm-fresh puja flowers delivered daily across Thane pincodes 400601 to 400608. 1 Day, Weekly & Monthly plans from ₹45.",
++      "Explore the live flower catalogue and order a one-day morning pack or a weekly/monthly plan with home delivery in serviceable Thane pincodes.",
+@@ -111,7 +111,7 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
+   logo: "https://palassh.com/images/logo.webp",
+   image: "https://palassh.com/images/hero-banner.webp",
+   description:
+-    "Farm-to-Mandir morning puja flower subscription service in Thane delivering 100g and 150g pouches of Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti between 6:00 AM and 8:00 AM.",
++    "Local flower ordering and home-delivery service in Thane, Maharashtra, with a live catalogue of fresh flower varieties and one-day, weekly and monthly morning delivery options in serviceable pincodes.",
+   telephone: "+917710942605",
+   email: "care@palassh.com",
+   address: {
+diff --git a/src/features/catalog/hero-banners.ts b/src/features/catalog/hero-banners.ts
+index d1cc39b..d19a87a 100644
+--- a/src/features/catalog/hero-banners.ts
++++ b/src/features/catalog/hero-banners.ts
+@@ -25,14 +25,14 @@ export function getDynamicHeroBanners(
+   return [
+     {
+       id: "slide-1",
+-      badge: "Daily Flower Delivery ",
+-      titleLine1: "Sacred Puja Blooms,",
+-      titleHighlight: "flowers that pray with you.",
++      badge: "Fresh Flower Home Delivery in Thane",
++      titleLine1: "Fresh Flowers in Thane",
++      titleHighlight: "Delivered to Your Doorstep.",
+       subtitle:
+-        "Choose from multiple flower varieties in 100 gms or 150 gms across 1 Day, Weekly, and Monthly plans. Hung silently between 6:00 AM – 8:00 AM.",
++        "Browse the available flower varieties, order a one-day morning pack or choose a weekly/monthly plan, and get fresh flowers delivered to your home in serviceable Thane pincodes.",
+       imageUrl: "/images/hero-banner.webp",
+-      primaryBtnText: `Explore Plans From ${oneDayPrice}`,
++      primaryBtnText: `Order a 1-Day Pack From ${oneDayPrice}`,
+       primaryBtnHref: "#plans",
+-      secondaryBtnText: "View Flower Varieties",
+-      secondaryBtnHref: "#plans",
++      secondaryBtnText: "Browse All Flower Varieties",
++      secondaryBtnHref: "/flowers-in-thane",
+       priceTag: `100g Plans: ${oneDayPrice} Day • ${weeklyPrice} Week • ${monthlyPrice} Month`,
+@@ -48,5 +48,5 @@ export function getDynamicHeroBanners(
+       titleLine1: "Fresh Pooja Flowers",
+       titleHighlight: "& with Blessings.",
+       subtitle:
+-        "Orange Marigold, Yellow Marigold, and White & Yellow Shevanti and lot more flowers available for your Needs.",
++        "Explore the currently listed flower varieties and choose a supported pack for your next morning home delivery.",
+       imageUrl: "/images/chrysanthemum.webp",
+diff --git a/src/app/(storefront)/HomePageClient.tsx b/src/app/(storefront)/HomePageClient.tsx
+index 87e790c..cc0a901 100644
+--- a/src/app/(storefront)/HomePageClient.tsx
++++ b/src/app/(storefront)/HomePageClient.tsx
+@@ -51,5 +51,5 @@ const FAQS = [
+   },
+   {
+-    tag: "7 Varieties in 100g & 150g",
++    tag: "Flower Varieties & Pack Sizes",
+     q: "What flower varieties and weights are available in your plans?",
+-    a: "We offer 7 sacred varieties—Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flower, Mixed Shevanti, White Shevanti, and Yellow Shevanti—available in both 100 gms and 150 gms daily pouches across 1 Day, Weekly, and Monthly plans.",
++    a: "Browse the live flower catalogue and the choices currently shown in the plan selector. Available flower varieties and pack sizes follow the active catalogue, so the selection can expand as PALASSH adds more flowers.",
+@@ -920,7 +920,7 @@ export default function HomePage() {
+               <Link
+-                href="/products"
++                href="/flowers-in-thane"
+                 className="inline-flex items-center gap-2.5 rounded-full bg-stone-900 hover:bg-[#D95326] px-8 py-4 text-xs sm:text-sm font-bold text-white shadow-md transition"
+               >
+-                <span>View All 7 Varieties in Member Store (/products)</span>
++                <span>Explore All Available Flower Varieties</span>
+                 <ArrowRight className="h-4 w-4" />
+               </Link>
+diff --git a/src/components/layout/Navbar.tsx b/src/components/layout/Navbar.tsx
+index 62e6bbcc..71b9cd10 100644
+--- a/src/components/layout/Navbar.tsx
++++ b/src/components/layout/Navbar.tsx
+@@ -104,5 +104,5 @@ export function Navbar() {
+   const navLinks = [
+     { label: "Home", href: "/" },
+     { label: "Subscriptions", href: "/#plans" },
+-    { label: "All Flowers", href: "/products" },
++    { label: "Flower Catalogue", href: "/flowers-in-thane" },
+     { label: "About Us", href: "/about" },
+@@ -282,5 +282,12 @@ export function Navbar() {
+                 })()}
+               </Link>
++              <Link
++                href="/flowers-in-thane"
++                onClick={() => setMobileMenuOpen(false)}
++                className="block rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-[#F3ECE1]"
++              >
++                Browse Flower Catalogue
++              </Link>
+               <Link
+                 href="/products"
+                 onClick={() => setMobileMenuOpen(false)}
+diff --git a/src/components/layout/Footer.tsx b/src/components/layout/Footer.tsx
+index b919c7cb..ef902812 100644
+--- a/src/components/layout/Footer.tsx
++++ b/src/components/layout/Footer.tsx
+@@ -229,8 +229,8 @@ export function Footer() {
+                 </li>
+                 <li className="pt-1">
+                   <Link
+-                    href="/#plans"
++                    href="/flowers-in-thane"
+                     className="inline-flex items-center gap-1.5 text-[#D95326] font-semibold hover:text-white"
+                   >
+-                    <span>→ Compare All 7 Varieties</span>
++                    <span>→ Browse Available Flower Varieties</span>
+                   </Link>
+@@ -240,4 +240,9 @@ export function Footer() {
+               <ul className="space-y-3 text-sm text-stone-300">
++                <li>
++                  <Link href="/flowers-in-thane" className="hover:text-white transition">
++                    Flower Catalogue
++                  </Link>
++                </li>
+                 <li>
+                   <Link href="/about" className="hover:text-white transition">
+                     About Us
+diff --git a/src/app/(storefront)/products/layout.tsx b/src/app/(storefront)/products/layout.tsx
+index 58db4723..05c7eeb1 100644
+--- a/src/app/(storefront)/products/layout.tsx
++++ b/src/app/(storefront)/products/layout.tsx
+@@ -1,9 +1,9 @@
+ import type { Metadata } from "next";
+ 
+ export const metadata: Metadata = {
+-  title: "Fresh Marigold, Shevanti & Pooja Flowers in Thane",
++  title: "Member Flower Add-On Store",
+   description:
+-    "Farm-fresh Marigold, Pooja Flowers and Shevanti in 100g & 150g packs across Thane (400601–400608), delivered between 6:00 AM – 8:00 AM.",
+-  alternates: { canonical: "https://palassh.com/products" },
++    "The PALASSH loose flower add-on store is reserved for active Weekly and Monthly subscribers.",
++  robots: { index: false, follow: true },
+ };
+ 
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+index 8a840b69..3d0e0100 100644
+--- a/src/app/sitemap.ts
++++ b/src/app/sitemap.ts
+@@ -8,4 +8,4 @@ const PATHS = [
+ const PATHS = [
+   "",
+-  "/products",
++  "/flowers-in-thane",
+   "/about",
+diff --git a/src/app/(storefront)/flowers-in-thane/page.tsx b/src/app/(storefront)/flowers-in-thane/page.tsx
+new file mode 100644
+index 0000000..f231d9a
+--- /dev/null
++++ b/src/app/(storefront)/flowers-in-thane/page.tsx
+@@ -0,0 +1,335 @@
++import type { Metadata } from "next";
++import Link from "next/link";
++import { getCachedServerStoreConfig } from "@/features/checkout/checkout.service";
++
++export const dynamic = "force-dynamic";
++
++export const metadata: Metadata = {
++  title: "Fresh Flowers in Thane | Home Delivery & 1-Day Ordering",
++  description:
++    "Looking for fresh flowers or flower delivery in Thane? Browse PALASSH's live flower catalogue, order a one-day morning pack or choose a weekly/monthly plan with home delivery.",
++  alternates: { canonical: "https://palassh.com/flowers-in-thane" },
++};
++
++type FlowerListEntry = {
++  id: string;
++  name: string;
++  marathiName?: string;
++  subtitle?: string;
++  description?: string;
++  imageUrl?: string;
++  weights: number[];
++  availableInOneDayPlan: boolean;
++  availableAsMemberAddOn: boolean;
++};
++
++function flowerKey(name: string): string {
++  return name.trim().toLocaleLowerCase("en-IN");
++}
++
++export default async function FlowersInThanePage() {
++  // Read the same database-backed catalogue used by the storefront.
++  // New varieties added through the existing admin catalogue appear here
++  // without hard-coding another flower name into this page.
++  const config = await getCachedServerStoreConfig();
++  const flowerMap = new Map<string, FlowerListEntry>();
++
++  for (const variant of config.planVariants) {
++    const name = String(variant.name || "").trim();
++    if (!name) continue;
++
++    const weights = Object.keys(variant.pricing || {})
++      .map(Number)
++      .filter((weight) => Number.isFinite(weight) && weight > 0);
++
++    flowerMap.set(flowerKey(name), {
++      id: variant.id,
++      name,
++      marathiName: variant.marathiName,
++      subtitle: variant.subtitle,
++      imageUrl: variant.imageUrl,
++      weights,
++      availableInOneDayPlan: true,
++      availableAsMemberAddOn: false,
++    });
++  }
++
++  for (const flower of config.flowers) {
++    const name = String(flower.name || "").trim();
++    if (!name) continue;
++
++    const key = flowerKey(name);
++    const existing = flowerMap.get(key);
++    const addOnWeights = (flower.availableWeights || [])
++      .map((weight) => Number(weight.grams))
++      .filter((weight) => Number.isFinite(weight) && weight > 0);
++    const weights = Array.from(
++      new Set([...(existing?.weights || []), ...addOnWeights])
++    ).sort((a, b) => a - b);
++
++    flowerMap.set(key, {
++      id: existing?.id || flower.id,
++      name,
++      marathiName: flower.marathiName || existing?.marathiName,
++      subtitle: flower.subtitle || existing?.subtitle,
++      description:
++        flower.botanicalNote || existing?.description || flower.subtitle,
++      imageUrl: flower.imageUrl || existing?.imageUrl,
++      weights,
++      availableInOneDayPlan: Boolean(existing?.availableInOneDayPlan),
++      availableAsMemberAddOn: true,
++    });
++  }
++
++  const flowers = Array.from(flowerMap.values()).sort((a, b) =>
++    a.name.localeCompare(b.name)
++  );
++  const oneDayPlan = config.plans.find(
++    (plan) => plan.deliveriesCount === 1 || plan.billingCycle === "day"
++  );
++
++  const itemListSchema = {
++    "@context": "https://schema.org",
++    "@type": "ItemList",
++    name: "PALASSH flower varieties available in Thane",
++    itemListElement: flowers.map((flower, index) => ({
++      "@type": "ListItem",
++      position: index + 1,
++      item: {
++        "@type": "Thing",
++        name: flower.name,
++        description: flower.subtitle || flower.description || undefined,
++      },
++    })),
++  };
++
++  const itemListJson = JSON.stringify(itemListSchema).replace(/</g, "\\u003c");
++
++  return (
++    <div className="min-h-screen bg-[#FAF6F0] text-stone-900">
++      <script
++        type="application/ld+json"
++        dangerouslySetInnerHTML={{ __html: itemListJson }}
++      />
++
++      <section className="border-b border-[#E6DEC8] bg-[#1C1917] px-4 py-14 text-white sm:py-20">
++        <div className="mx-auto max-w-6xl space-y-5">
++          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F5D0A9]">
++            PALASSH • Fresh Flower Home Delivery
++          </p>
++          <h1 className="max-w-4xl font-serif text-3xl font-bold leading-tight sm:text-5xl lg:text-6xl">
++            Fresh Flowers in Thane, Delivered to Your Home
++          </h1>
++          <p className="max-w-3xl text-sm leading-relaxed text-stone-300 sm:text-lg">
++            Looking for a flower shop, a local flower supplier near you, or fresh
++            flower delivery in Thane? Browse PALASSH's current flower varieties,
++            choose a supported one-day pack or a recurring plan, and get your
++            order delivered to your doorstep in our serviceable Thane areas.
++          </p>
++          <div className="flex flex-wrap gap-3 pt-1">
++            <Link
++              href="/#plans"
++              className="rounded-full bg-[#D95326] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#BA421B]"
++            >
++              Order a 1-Day Flower Pack
++            </Link>
++            <Link
++              href="/#pincode-check"
++              className="rounded-full border border-stone-600 bg-white/5 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10"
++            >
++              Check Home Delivery Pincode
++            </Link>
++          </div>
++          <p className="text-xs text-stone-400">
++            Morning doorstep delivery: 6:00 AM–8:00 AM • Current service area:
++            Thane pincodes 400601–400608
++          </p>
++        </div>
++      </section>
++
++      <section
++        id="flower-catalogue"
++        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8"
++      >
++        <div className="mb-8 max-w-3xl space-y-3">
++          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#D95326]">
++            Current Flower Selection
++          </p>
++          <h2 className="font-serif text-2xl font-bold sm:text-4xl">
++            Browse Available Flower Varieties
++          </h2>
++          <p className="text-sm leading-relaxed text-stone-600">
++            This catalogue is built from PALASSH's active flower and plan
++            catalogues. It can include new varieties as they are added, rather
++            than being limited to a fixed list of three flowers. Pack sizes and
++            ordering options are shown from the live catalogue.
++          </p>
++        </div>
++
++        {flowers.length === 0 ? (
++          <p className="rounded-2xl border border-[#E6DEC8] bg-white p-6 text-sm text-stone-600">
++            Flower options are being updated. Please check the one-day plan for
++            the latest selection.
++          </p>
++        ) : (
++          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
++            {flowers.map((flower) => (
++              <article
++                key={flower.id}
++                className="overflow-hidden rounded-3xl border border-[#E6DEC8] bg-white shadow-sm"
++              >
++                {flower.imageUrl ? (
++                  <img
++                    src={flower.imageUrl}
++                    alt={`${flower.name} flowers in the PALASSH Thane catalogue`}
++                    width={800}
++                    height={600}
++                    loading="lazy"
++                    decoding="async"
++                    className="aspect-[4/3] w-full bg-[#F3ECE1] object-cover"
++                  />
++                ) : null}
++                <div className="space-y-3 p-5">
++                  <div>
++                    <h3 className="font-serif text-xl font-bold">{flower.name}</h3>
++                    {flower.marathiName ? (
++                      <p className="mt-1 text-sm text-stone-500">
++                        {flower.marathiName}
++                      </p>
++                    ) : null}
++                  </div>
++                  {flower.subtitle || flower.description ? (
++                    <p className="text-sm leading-relaxed text-stone-600">
++                      {flower.subtitle || flower.description}
++                    </p>
++                  ) : null}
++                  <div className="flex flex-wrap gap-2">
++                    {flower.availableInOneDayPlan ? (
++                      <span className="rounded-full bg-[#FFF3EC] px-3 py-1 text-xs font-semibold text-[#A63D1C]">
++                        1-Day Plan
++                      </span>
++                    ) : null}
++                    {flower.availableAsMemberAddOn ? (
++                      <span className="rounded-full bg-[#F3ECE1] px-3 py-1 text-xs font-semibold text-stone-700">
++                        Weekly/Monthly Member Add-On
++                      </span>
++                    ) : null}
++                  </div>
++                  {flower.weights.length > 0 ? (
++                    <p className="text-xs font-medium text-stone-500">
++                      Listed pack sizes: {flower.weights.map((weight) => `${weight}g`).join(" / ")}
++                    </p>
++                  ) : null}
++                </div>
++              </article>
++            ))}
++          </div>
++        )}
++        <p className="mt-5 text-xs text-stone-500">
++          Available varieties, pack sizes and member add-on eligibility may
++          differ. Confirm the current options in the plan selector before
++          checkout.
++        </p>
++      </section>
++
++      <section className="border-y border-[#E6DEC8] bg-white px-4 py-14 sm:py-16">
++        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-2 lg:items-center">
++          <div className="space-y-3">
++            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#D95326]">
++              No Long Commitment Required
++            </p>
++            <h2 className="font-serif text-2xl font-bold sm:text-4xl">
++              Order Flowers for Just One Day
++            </h2>
++            <p className="text-sm leading-relaxed text-stone-600">
++              You do not need to choose a weekly or monthly subscription to
++              place a one-day order. Select PALASSH's 1-Day Plan, choose a flower
++              variety and available pack size, and see the final price before
++              payment. Weekly and monthly plans are available for customers who
++              prefer regular morning deliveries.
++            </p>
++            {oneDayPlan ? (
++              <p className="text-sm font-semibold text-stone-800">
++                1-Day Plan starting price: ₹
++                {Number(oneDayPlan.price).toLocaleString("en-IN")}.
++                <span className="ml-1 font-normal text-stone-500">
++                  Final price depends on the selected flower and pack size.
++                </span>
++              </p>
++            ) : null}
++            <Link
++              href="/#plans"
++              className="inline-flex rounded-full bg-[#D95326] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#BA421B]"
++            >
++              View 1-Day, Weekly & Monthly Plans
++            </Link>
++          </div>
++          <div className="rounded-3xl border border-[#E6DEC8] bg-[#FAF6F0] p-6 sm:p-8">
++            <h2 className="font-serif text-xl font-bold sm:text-2xl">
++              Flower Home Delivery Across Thane
++            </h2>
++            <p className="mt-3 text-sm leading-relaxed text-stone-600">
++              PALASSH delivers orders to customers' homes in its current
++              serviceable Thane areas. Coverage is listed for pincodes
++              400601–400608. Enter your pincode in the delivery checker before
++              ordering so you can confirm that your society is on an active
++              route.
++            </p>
++            <p className="mt-3 text-sm text-stone-600">
++              The regular morning doorstep delivery window is 6:00 AM–8:00 AM.
++              Orders placed before the 11:45 PM IST cut-off are scheduled for
++              the next available morning according to the checkout calendar.
++            </p>
++            <Link
++              href="/#pincode-check"
++              className="mt-5 inline-flex font-semibold text-[#C84617] hover:underline"
++            >
++              Verify your Thane pincode →
++            </Link>
++          </div>
++        </div>
++      </section>
++
++      <section className="mx-auto max-w-5xl space-y-6 px-4 py-14 sm:py-20">
++        <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++          Frequently Asked Questions About Flower Delivery in Thane
++        </h2>
++        <div className="space-y-5">
++          <div>
++            <h3 className="font-semibold">Can I order flowers for only one day?</h3>
++            <p className="mt-1 text-sm leading-relaxed text-stone-600">
++              Yes. Choose the 1-Day Plan for a single morning delivery. A weekly
++              or monthly plan is not required for a one-day order.
++            </p>
++          </div>
++          <div>
++            <h3 className="font-semibold">Does PALASSH provide flower home delivery in Thane?</h3>
++            <p className="mt-1 text-sm leading-relaxed text-stone-600">
++              Yes. Home delivery is available on active routes in Thane
++              pincodes 400601–400608. Use the pincode checker to confirm your
++              exact delivery location.
++            </p>
++          </div>
++          <div>
++            <h3 className="font-semibold">Which flowers can I order?</h3>
++            <p className="mt-1 text-sm leading-relaxed text-stone-600">
++              The varieties shown above are read from the active PALASSH
++              catalogue. The selection can expand as new flowers are added.
++              Options marked 1-Day Plan are available through the one-day plan;
++              member add-ons are reserved for eligible Weekly and Monthly
++              subscribers.
++            </p>
++          </div>
++          <div>
++            <h3 className="font-semibold">Can I buy flowers online without visiting a shop?</h3>
++            <p className="mt-1 text-sm leading-relaxed text-stone-600">
++              Yes. Browse the flower options, choose an eligible plan and pack
++              size, verify your pincode, and complete the prepaid checkout
++              online.
++            </p>
++          </div>
++        </div>
++      </section>
++    </div>
++  );
++}

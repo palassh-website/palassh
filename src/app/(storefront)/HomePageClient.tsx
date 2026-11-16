@@ -70,9 +70,9 @@ const FAQS = [
     a: "Loose flower Add-On shopping (100g or 150g packs) is unlocked exclusively for active Weekly and Monthly Plan subscribers (up to last day before your plan ends).",
   },
   {
-    tag: "7 Varieties in 100g & 150g",
+    tag: "Flower Varieties & Pack Sizes",
     q: "What flower varieties and weights are available in your plans?",
-    a: "We offer 7 sacred varieties—Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flower, Mixed Shevanti, White Shevanti, and Yellow Shevanti—available in both 100 gms and 150 gms daily pouches across 1 Day, Weekly, and Monthly plans.",
+    a: "Browse the live flower catalogue and the choices currently shown in the plan selector. Available flower varieties and pack sizes follow the active catalogue, so the selection can expand as PALASSH adds more flowers.",
   },
   {
     tag: "Pause Quota (Weekly vs Monthly)",
@@ -957,10 +957,10 @@ export default function HomePage() {
           <div className="mt-12 text-center">
             <Magnetic strength={0.2}>
               <Link
-                href="/products"
+                href="/flowers-in-thane"
                 className="inline-flex items-center gap-2.5 rounded-full bg-stone-900 hover:bg-[#D95326] px-8 py-4 text-xs sm:text-sm font-bold text-white shadow-md transition"
               >
-                <span>View All 7 Varieties in Member Store (/products)</span>
+                <span>Explore All Available Flower Varieties</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Magnetic>

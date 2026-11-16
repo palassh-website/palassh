@@ -28,11 +28,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://palassh.com"),
   title: {
-    default: "Fresh Puja Flower Subscription in Thane | PALASSH",
+    default: "Fresh Flowers in Thane | Home Delivery & 1-Day Orders | PALASSH",
     template: "%s | PALASSH",
   },
   description:
-    "Daily farm-fresh puja flowers in Thane (400601–400608), delivered silently between 6:00 AM – 8:00 AM. Marigold, Shevanti & Pooja flowers. Plans from ₹45.",
+    "Order fresh flowers online in Thane with home delivery. Explore the live flower catalogue, choose a one-day morning pack or a weekly/monthly plan, and check your delivery pincode.",
   keywords: [
     "puja flower delivery thane",
     "daily pooja flowers subscription thane west",
@@ -57,9 +57,9 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: "https://palassh.com",
     siteName: "PALASSH Flowers Thane",
-    title: "PALASSH — Morning Puja Flower Subscription in Thane",
+    title: "PALASSH — Fresh Flowers & Home Delivery in Thane",
     description:
-      "Fresh Marigold (झेंडू), Pooja Flowers & Shevanti (शेवंती) in 100g & 150g pouches, hung silently on your doorstep between 6:00 AM – 8:00 AM across Thane.",
+      "Browse available flower varieties, order a one-day pack or choose a recurring plan, and get fresh flowers delivered to your home in serviceable Thane pincodes.",
     images: [
       {
         url: "/images/og-image.jpg",
@@ -71,9 +71,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PALASSH | Morning 6–8 AM Puja Flower Subscription in Thane",
+    title: "PALASSH | Fresh Flowers with Home Delivery in Thane",
     description:
-      "100% Zero Cold Storage farm-fresh puja flowers delivered daily across Thane pincodes 400601 to 400608. 1 Day, Weekly & Monthly plans from ₹45.",
+      "Explore the live flower catalogue and order a one-day morning pack or a weekly/monthly plan with home delivery in serviceable Thane pincodes.",
     images: ["/images/og-image.jpg"],
   },
   robots: {
@@ -106,7 +106,7 @@ const THANE_LOCAL_BUSINESS_SCHEMA = {
   logo: "https://palassh.com/images/logo.webp",
   image: "https://palassh.com/images/hero-banner.webp",
   description:
-    "Farm-to-Mandir morning puja flower subscription service in Thane delivering 100g and 150g pouches of Mixed Marigold, Orange Marigold, Yellow Marigold, Pooja Flowers, and White & Yellow Shevanti between 6:00 AM and 8:00 AM.",
+    "Local flower ordering and home-delivery service in Thane, Maharashtra, with a live catalogue of fresh flower varieties and one-day, weekly and monthly morning delivery options in serviceable pincodes.",
   telephone: "+917710942605",
   email: "care@palassh.com",
   address: {
