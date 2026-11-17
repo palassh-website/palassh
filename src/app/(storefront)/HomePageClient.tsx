@@ -233,7 +233,9 @@ export default function HomePage() {
   const [reviews, setReviews] = useState<CustomerReview[]>(INITIAL_REVIEWS);
   const [reviewerName, setReviewerName] = useState<string>("");
   const [reviewerSociety, setReviewerSociety] = useState<string>("");
-  const [reviewerRating, setReviewerRating] = useState<number>(5);
+  // 0 = visitor has not picked a rating yet. The form requires one, so a
+  // review can no longer be saved or emailed as 5 stars by default.
+  const [reviewerRating, setReviewerRating] = useState<number>(0);
   const [reviewerQuote, setReviewerQuote] = useState<string>("");
   const [reviewSubmittedMsg, setReviewSubmittedMsg] = useState<string>("");
   const reviewMsgTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -407,7 +409,9 @@ export default function HomePage() {
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewerName.trim() || !reviewerQuote.trim()) return;
+    if (!reviewerName.trim() || !reviewerQuote.trim() || reviewerRating < 1) {
+      return;
+    }
 
     // Email the admin who wrote the review and how many stars. Fire-and-forget:
     // the on-page review flow below must never wait on, or fail because of, it.
@@ -450,7 +454,7 @@ export default function HomePage() {
     setReviewerName("");
     setReviewerSociety("");
     setReviewerQuote("");
-    setReviewerRating(5);
+    setReviewerRating(0);
     setReviewSubmittedMsg(
       "Thank you! Your review is now live on the swipeable wall above."
     );
@@ -1207,6 +1211,40 @@ export default function HomePage() {
                       />
                     </div>
                   </div>
+
+                  <fieldset>
+                    <legend className="block text-xs font-bold text-stone-700 mb-1">
+                      Your Rating *
+                    </legend>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <label
+                          key={n}
+                          className="cursor-pointer"
+                          title={`${n} star${n > 1 ? "s" : ""}`}
+                        >
+                          <input
+                            type="radio"
+                            name="reviewerRating"
+                            value={n}
+                            required
+                            checked={reviewerRating === n}
+                            onChange={() => setReviewerRating(n)}
+                            className="peer sr-only"
+                          />
+                          <Star
+                            className={`h-7 w-7 transition peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[#D95326] ${n <= reviewerRating
+                                ? "fill-[#D95326] text-[#D95326]"
+                                : "text-stone-300"
+                              }`}
+                          />
+                          <span className="sr-only">
+                            {n} star{n > 1 ? "s" : ""}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
 
                   <div>
                     <label className="block text-xs font-bold text-stone-700 mb-1">
