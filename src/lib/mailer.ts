@@ -283,3 +283,103 @@ export async function sendAdminDispatchCsvEmail(params: {
     };
   }
 }
+
+/** Escapes text before it is placed inside an HTML email body. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Emails the admin whenever a visitor submits the homepage review form:
+ * who wrote it, how many stars, and what they wrote.
+ *
+ * Every visitor-supplied value is HTML-escaped, because this is a public form
+ * and the text lands inside an HTML email.
+ */
+export async function sendAdminReviewNotificationEmail(params: {
+  reviewerName: string;
+  society: string;
+  rating: number;
+  quote: string;
+  traceId: string;
+}): Promise<{ sent: boolean; recipient: string; errorReason?: string }> {
+  const getElapsed = startTimer();
+  const env = getEnvConfig();
+  const recipient = env.ADMIN_EMAIL;
+
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    logger.warn({
+      module: "SMTP_MAILER",
+      action: "REVIEW_EMAIL_SKIPPED_NO_SMTP",
+      traceId: params.traceId,
+      durationMs: getElapsed(),
+      message: `SMTP_USER/SMTP_PASS not set. Review from "${params.reviewerName}" (${params.rating}/5) was not emailed.`,
+    });
+    return { sent: false, recipient, errorReason: "SMTP not configured" };
+  }
+
+  const stars = `${params.rating}/5 ${"★".repeat(params.rating)}${"☆".repeat(
+    5 - params.rating
+  )}`;
+  const society = params.society || "Not provided";
+
+  try {
+    const transporter = createSmtpTransporter();
+    await transporter.sendMail({
+      from: env.SMTP_FROM || `"PALASSH Reviews" <${env.SMTP_USER}>`,
+      to: recipient,
+      subject: `New PALASSH review: ${params.rating}/5 from ${params.reviewerName.slice(0, 40)}`,
+      text: [
+        "New review submitted on palassh.com",
+        "",
+        `Name: ${params.reviewerName}`,
+        `Society / area: ${society}`,
+        `Stars: ${stars}`,
+        "",
+        "Review:",
+        params.quote,
+      ].join("\n"),
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 540px; padding: 20px; background: #FAF6F0; border: 1px solid #E6DEC8; border-radius: 16px; color: #1C1917;">
+          <h2 style="margin: 0 0 12px;">New review on palassh.com</h2>
+          <div style="font-size: 14px; line-height: 1.8;">
+            <div><strong>Name:</strong> ${escapeHtml(params.reviewerName)}</div>
+            <div><strong>Society / area:</strong> ${escapeHtml(society)}</div>
+            <div><strong>Stars:</strong> ${escapeHtml(stars)}</div>
+          </div>
+          <div style="margin-top: 14px; background: #FFFFFF; border: 1px solid #E6DEC8; border-radius: 12px; padding: 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(params.quote)}</div>
+        </div>
+      `,
+    });
+
+    logger.info({
+      module: "SMTP_MAILER",
+      action: "REVIEW_EMAIL_SENT",
+      traceId: params.traceId,
+      durationMs: getElapsed(),
+      message: `Review notification (${params.rating}/5) sent to admin.`,
+    });
+    return { sent: true, recipient };
+  } catch (err) {
+    logger.error(
+      {
+        module: "SMTP_MAILER",
+        action: "REVIEW_EMAIL_FAILED",
+        traceId: params.traceId,
+        durationMs: getElapsed(),
+        message: "Failed to email the admin about a new review.",
+      },
+      err
+    );
+    return {
+      sent: false,
+      recipient,
+      errorReason: err instanceof Error ? err.message : "Failed to send email",
+    };
+  }
+}

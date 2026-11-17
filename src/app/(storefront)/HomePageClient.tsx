@@ -409,6 +409,24 @@ export default function HomePage() {
     e.preventDefault();
     if (!reviewerName.trim() || !reviewerQuote.trim()) return;
 
+    // Email the admin who wrote the review and how many stars. Fire-and-forget:
+    // the on-page review flow below must never wait on, or fail because of, it.
+    try {
+      void fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          name: reviewerName,
+          society: reviewerSociety,
+          rating: reviewerRating,
+          quote: reviewerQuote,
+        }),
+      }).catch(() => {});
+    } catch {
+      // Never block the on-screen review flow.
+    }
+
     const newRev: CustomerReview = {
       id: `rev-${Date.now()}`,
       name: reviewerName.trim(),
