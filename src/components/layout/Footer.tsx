@@ -260,6 +260,16 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/pooja-flowers-thane" className="hover:text-white transition">
+                    Pooja Flowers in Thane
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/daily-flower-supplier-thane" className="hover:text-white transition">
+                    Daily Flower Supplier
+                  </Link>
+                </li>
+                <li>
                   <Link href="/about" className="hover:text-white transition">
                     About Us
                   </Link>

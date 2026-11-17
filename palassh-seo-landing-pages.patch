@@ -1,0 +1,626 @@
+diff --git a/src/app/(storefront)/HomePageClient.tsx b/src/app/(storefront)/HomePageClient.tsx
+index f9e7ab0..20d3766 100644
+--- a/src/app/(storefront)/HomePageClient.tsx
++++ b/src/app/(storefront)/HomePageClient.tsx
+@@ -569,8 +569,16 @@ export default function HomePage() {
+               </div>
+ 
+               <div className="space-y-1">
++                {/* The carousel rotates its visible title every 6s, so the page's
++                    real <h1> must not live inside it: a crawler's rendered
++                    snapshot would otherwise see a different H1 depending on
++                    timing. This stable H1 states the page topic; the animated
++                    slide title below is a <p>. */}
++                <h1 className="sr-only">
++                  Fresh Flowers in Thane: Daily Puja Flower Home Delivery by PALASSH
++                </h1>
+                 <SplitText
+-                  as="h1"
++                  as="p"
+                   play
+                   mode="words"
+                   stagger={50}
+diff --git a/src/app/(storefront)/_seo/SeoLandingTemplate.tsx b/src/app/(storefront)/_seo/SeoLandingTemplate.tsx
+new file mode 100644
+index 0000000..a31dc34
+--- /dev/null
++++ b/src/app/(storefront)/_seo/SeoLandingTemplate.tsx
+@@ -0,0 +1,243 @@
++import Link from "next/link";
++import type { SubscriptionPlan } from "@/features/catalog/types";
++import { getWhatsAppUrl } from "@/lib/whatsapp";
++import {
++  SEO_LANDING_LINKS,
++  buildBreadcrumbSchema,
++  buildFaqSchema,
++  toJsonLd,
++} from "./seo-helpers";
++
++export type LandingSection = {
++  heading: string;
++  paragraphs?: string[];
++  bullets?: string[];
++};
++
++export type LandingFlower = { name: string; marathiName?: string };
++
++type Props = {
++  path: string;
++  breadcrumbName: string;
++  eyebrow: string;
++  h1: string;
++  intro: string;
++  sections: LandingSection[];
++  flowersHeading?: string;
++  flowers?: LandingFlower[];
++  plans: SubscriptionPlan[];
++  plansHeading: string;
++  faqs: { q: string; a: string }[];
++  /** Hrefs of the other landing pages to link to from this one. */
++  relatedHrefs: string[];
++  whatsappMessage: string;
++};
++
++function planLabel(plan: SubscriptionPlan): string {
++  if (plan.billingCycle === "day") return "1 morning delivery";
++  return `${plan.deliveriesCount} morning deliveries`;
++}
++
++export function SeoLandingTemplate({
++  path,
++  breadcrumbName,
++  eyebrow,
++  h1,
++  intro,
++  sections,
++  flowersHeading,
++  flowers,
++  plans,
++  plansHeading,
++  faqs,
++  relatedHrefs,
++  whatsappMessage,
++}: Props) {
++  const related = SEO_LANDING_LINKS.filter((link) =>
++    relatedHrefs.includes(link.href)
++  );
++
++  return (
++    <div className="min-h-screen bg-[#FAF6F0] text-stone-900">
++      <script
++        type="application/ld+json"
++        dangerouslySetInnerHTML={{
++          __html: toJsonLd(buildBreadcrumbSchema([{ name: breadcrumbName, path }])),
++        }}
++      />
++      <script
++        type="application/ld+json"
++        dangerouslySetInnerHTML={{ __html: toJsonLd(buildFaqSchema(faqs)) }}
++      />
++
++      <section className="border-b border-[#E6DEC8] bg-[#1C1917] px-4 py-14 text-white sm:py-20">
++        <div className="mx-auto max-w-6xl space-y-5">
++          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F5D0A9]">
++            {eyebrow}
++          </p>
++          <h1 className="max-w-4xl font-serif text-3xl font-bold leading-tight sm:text-5xl">
++            {h1}
++          </h1>
++          <p className="max-w-3xl text-sm leading-relaxed text-stone-300 sm:text-lg">
++            {intro}
++          </p>
++          <div className="flex flex-wrap gap-3 pt-1">
++            <Link
++              href="/#plans"
++              className="rounded-full bg-[#D95326] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#BA421B]"
++            >
++              View Plans &amp; Order
++            </Link>
++            <Link
++              href="/#pincode-check"
++              className="rounded-full border border-stone-600 bg-white/5 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10"
++            >
++              Check Your Thane Pincode
++            </Link>
++          </div>
++          <p className="text-xs text-stone-400">
++            Morning doorstep delivery: 6:00 AM–8:00 AM • Service area: Thane
++            pincodes 400601–400608
++          </p>
++        </div>
++      </section>
++
++      <div className="mx-auto max-w-4xl space-y-14 px-4 py-14 sm:py-20">
++        {sections.map((section) => (
++          <section key={section.heading} className="space-y-3">
++            <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++              {section.heading}
++            </h2>
++            {section.paragraphs?.map((text) => (
++              <p
++                key={text.slice(0, 40)}
++                className="text-sm leading-relaxed text-stone-600 sm:text-base"
++              >
++                {text}
++              </p>
++            ))}
++            {section.bullets ? (
++              <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-stone-600 sm:text-base">
++                {section.bullets.map((item) => (
++                  <li key={item.slice(0, 40)}>{item}</li>
++                ))}
++              </ul>
++            ) : null}
++          </section>
++        ))}
++
++        {flowers && flowers.length > 0 ? (
++          <section className="space-y-3">
++            <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++              {flowersHeading}
++            </h2>
++            <ul className="grid gap-2 sm:grid-cols-2">
++              {flowers.map((flower) => (
++                <li
++                  key={flower.name}
++                  className="rounded-2xl border border-[#E6DEC8] bg-white px-4 py-3 text-sm"
++                >
++                  <span className="font-semibold">{flower.name}</span>
++                  {flower.marathiName ? (
++                    <span className="ml-2 text-stone-500">{flower.marathiName}</span>
++                  ) : null}
++                </li>
++              ))}
++            </ul>
++            <p className="text-xs text-stone-500">
++              Varieties are read from the live PALASSH catalogue, so this list
++              follows what is currently available.
++            </p>
++          </section>
++        ) : null}
++
++        {plans.length > 0 ? (
++          <section className="space-y-3">
++            <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++              {plansHeading}
++            </h2>
++            <div className="overflow-x-auto rounded-2xl border border-[#E6DEC8] bg-white">
++              <table className="w-full text-left text-sm">
++                <thead className="bg-[#F3ECE1] text-xs uppercase tracking-wider text-stone-600">
++                  <tr>
++                    <th className="px-4 py-3">Plan</th>
++                    <th className="px-4 py-3">Includes</th>
++                    <th className="px-4 py-3">Price from</th>
++                  </tr>
++                </thead>
++                <tbody>
++                  {plans.map((plan) => (
++                    <tr key={plan.id} className="border-t border-[#E6DEC8]">
++                      <td className="px-4 py-3 font-semibold">{plan.title}</td>
++                      <td className="px-4 py-3 text-stone-600">{planLabel(plan)}</td>
++                      <td className="px-4 py-3 font-semibold">
++                        ₹{Number(plan.price).toLocaleString("en-IN")}
++                      </td>
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++            <p className="text-xs text-stone-500">
++              Prices come from the live plan catalogue. The final price depends
++              on the flower and pack size you pick, and is shown before payment.
++            </p>
++          </section>
++        ) : null}
++
++        <section className="space-y-5">
++          <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++            Frequently Asked Questions
++          </h2>
++          {faqs.map((item) => (
++            <div key={item.q}>
++              <h3 className="font-semibold">{item.q}</h3>
++              <p className="mt-1 text-sm leading-relaxed text-stone-600 sm:text-base">
++                {item.a}
++              </p>
++            </div>
++          ))}
++        </section>
++
++        <section className="space-y-4 rounded-3xl border border-[#E6DEC8] bg-white p-6 sm:p-8">
++          <h2 className="font-serif text-xl font-bold sm:text-2xl">
++            Explore more from PALASSH
++          </h2>
++          <ul className="space-y-2 text-sm">
++            {related.map((link) => (
++              <li key={link.href}>
++                <Link
++                  href={link.href}
++                  className="font-semibold text-[#C84617] hover:underline"
++                >
++                  {link.label}
++                </Link>
++                <span className="text-stone-500"> — {link.hint}</span>
++              </li>
++            ))}
++            <li>
++              <Link
++                href="/how-it-works"
++                className="font-semibold text-[#C84617] hover:underline"
++              >
++                How PALASSH works
++              </Link>
++              <span className="text-stone-500"> — from pincode check to doorstep</span>
++            </li>
++          </ul>
++          <p className="text-sm text-stone-600">
++            Questions before you order?{" "}
++            <a
++              href={getWhatsAppUrl(whatsappMessage)}
++              className="font-semibold text-[#C84617] hover:underline"
++              rel="noopener"
++            >
++              Message us on WhatsApp
++            </a>
++            .
++          </p>
++        </section>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/(storefront)/_seo/seo-helpers.ts b/src/app/(storefront)/_seo/seo-helpers.ts
+new file mode 100644
+index 0000000..d0ab402
+--- /dev/null
++++ b/src/app/(storefront)/_seo/seo-helpers.ts
+@@ -0,0 +1,56 @@
++// Private (underscore-prefixed) folder: Next.js does not turn it into a route.
++// Shared SEO helpers for the storefront landing pages.
++
++export const SITE_URL = "https://palassh.com";
++
++/** The indexable landing pages, used for internal cross-linking. */
++export const SEO_LANDING_LINKS = [
++  {
++    href: "/flowers-in-thane",
++    label: "Fresh flowers in Thane",
++    hint: "Browse the live flower catalogue and order a 1-day pack",
++  },
++  {
++    href: "/pooja-flowers-thane",
++    label: "Pooja flowers in Thane",
++    hint: "Marigold, Shevanti and pooja flower assortments for morning puja",
++  },
++  {
++    href: "/daily-flower-supplier-thane",
++    label: "Daily flower supplier in Thane",
++    hint: "Weekly and monthly morning flower delivery plans",
++  },
++] as const;
++
++export function buildBreadcrumbSchema(trail: { name: string; path: string }[]) {
++  return {
++    "@context": "https://schema.org",
++    "@type": "BreadcrumbList",
++    itemListElement: [
++      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
++      ...trail.map((crumb, index) => ({
++        "@type": "ListItem",
++        position: index + 2,
++        name: crumb.name,
++        item: `${SITE_URL}${crumb.path}`,
++      })),
++    ],
++  };
++}
++
++export function buildFaqSchema(faqs: { q: string; a: string }[]) {
++  return {
++    "@context": "https://schema.org",
++    "@type": "FAQPage",
++    mainEntity: faqs.map((item) => ({
++      "@type": "Question",
++      name: item.q,
++      acceptedAnswer: { "@type": "Answer", text: item.a },
++    })),
++  };
++}
++
++/** JSON-LD must not be able to close its own <script> tag. */
++export function toJsonLd(data: unknown): string {
++  return JSON.stringify(data).replace(/</g, "\\u003c");
++}
+diff --git a/src/app/(storefront)/daily-flower-supplier-thane/page.tsx b/src/app/(storefront)/daily-flower-supplier-thane/page.tsx
+new file mode 100644
+index 0000000..7073f64
+--- /dev/null
++++ b/src/app/(storefront)/daily-flower-supplier-thane/page.tsx
+@@ -0,0 +1,89 @@
++import type { Metadata } from "next";
++import { getCachedServerStoreConfig } from "@/features/checkout/checkout.service";
++import { SeoLandingTemplate } from "../_seo/SeoLandingTemplate";
++
++export const revalidate = 3600;
++
++const PATH = "/daily-flower-supplier-thane";
++
++export const metadata: Metadata = {
++  title: "Daily Flower Supplier in Thane | Morning Flower Subscription",
++  description:
++    "Get fresh flowers every morning in Thane. PALASSH is a daily flower supplier with 1-day, weekly and monthly plans, silent 6–8 AM doorstep delivery and pause options.",
++  alternates: { canonical: `https://palassh.com${PATH}` },
++};
++
++const FAQS = [
++  {
++    q: "How does a daily flower supply work with PALASSH?",
++    a: "You choose a Weekly or Monthly plan, a flower and a pack size, and pay online. A fresh pouch is then delivered to your door every morning between 6:00 AM and 8:00 AM for the length of the plan.",
++  },
++  {
++    q: "Do I have to commit to a long subscription?",
++    a: "No. The 1 Day Plan is a single morning delivery, so you can try the flowers once. Weekly and monthly plans are for people who want flowers every morning.",
++  },
++  {
++    q: "Can I pause deliveries when I travel?",
++    a: "Yes. From your My Orders calendar, Weekly subscribers can pause up to 2 deliveries and Monthly subscribers up to 5, as long as the pause is made before 8:00 PM.",
++  },
++  {
++    q: "Can I buy extra flowers on top of my daily pack?",
++    a: "Active Weekly and Monthly subscribers can buy extra 100g or 150g flower add-on packs from the member store. The 1 Day Plan does not include add-on access.",
++  },
++  {
++    q: "Which parts of Thane do you supply?",
++    a: "Thane pincodes 400601 to 400608, including Thane West, Ghodbunder Road, Kalwa, Pokhran Road, Naupada and Balkum. Check your pincode on the home page before ordering.",
++  },
++];
++
++export default async function DailyFlowerSupplierThanePage() {
++  const config = await getCachedServerStoreConfig();
++  const flowers = config.flowers
++    .filter((flower) => flower.inStock !== false && flower.name)
++    .map((flower) => ({
++      name: String(flower.name).trim(),
++      marathiName: flower.marathiName || undefined,
++    }));
++
++  return (
++    <SeoLandingTemplate
++      path={PATH}
++      breadcrumbName="Daily Flower Supplier in Thane"
++      eyebrow="PALASSH • Daily Morning Flower Supply"
++      h1="Daily Flower Supplier in Thane: Fresh Flowers at Your Door Every Morning"
++      intro="Stop buying flowers one trip at a time. PALASSH supplies fresh flowers to homes across Thane every morning between 6:00 AM and 8:00 AM, on a plan you can start for one day, one week or one month."
++      sections={[
++        {
++          heading: "What a daily flower supply from PALASSH includes",
++          bullets: [
++            "A fresh pouch of flowers at your door every morning, 6:00 AM to 8:00 AM.",
++            "Silent delivery: the pouch is hung on your door handle, with no bell and no phone call.",
++            "100g or 150g packs, with the flower variety chosen when you subscribe.",
++            "Pause options: up to 2 pauses on a Weekly plan and up to 5 on a Monthly plan.",
++            "Extra add-on packs for Weekly and Monthly subscribers.",
++          ],
++        },
++        {
++          heading: "Why subscribe instead of buying flowers every day",
++          paragraphs: [
++            "A subscription removes the daily errand. Flowers leave the farm the evening before and are delivered the next morning without cold storage, so you get a fresh pack even on days you cannot get to a market or shop.",
++            "If you are not sure yet, start with the 1 Day Plan. If the quality suits you, a weekly or monthly plan works out cheaper per day than ordering single days.",
++          ],
++        },
++        {
++          heading: "Need a different quantity?",
++          paragraphs: [
++            "PALASSH plans are built around 100g and 150g packs. If you need something different, such as a larger quantity, send us a message on WhatsApp and we will tell you what is possible.",
++          ],
++        },
++      ]}
++      flowersHeading="Flowers available for daily delivery"
++      flowers={flowers}
++      plans={config.plans}
++      plansHeading="Daily, weekly and monthly flower plans"
++      faqs={FAQS}
++      relatedHrefs={["/flowers-in-thane", "/pooja-flowers-thane"]}
++      whatsappMessage="Hi PALASSH, I would like to know about daily flower supply in Thane."
++    />
++  );
++}
+diff --git a/src/app/(storefront)/flowers-in-thane/page.tsx b/src/app/(storefront)/flowers-in-thane/page.tsx
+index 9a80b6e..fc3541c 100644
+--- a/src/app/(storefront)/flowers-in-thane/page.tsx
++++ b/src/app/(storefront)/flowers-in-thane/page.tsx
+@@ -1,8 +1,13 @@
+ import type { Metadata } from "next";
+ import Link from "next/link";
+ import { getCachedServerStoreConfig } from "@/features/checkout/checkout.service";
++import { buildBreadcrumbSchema, SEO_LANDING_LINKS } from "../_seo/seo-helpers";
+ 
+-export const dynamic = "force-dynamic";
++// Nothing here depends on the request (no cookies/headers/searchParams), so
++// force-dynamic only made every crawler hit run a serverless function plus a DB
++// lookup. ISR serves a pre-built page from the edge and still picks up
++// catalogue changes made in the admin within the hour.
++export const revalidate = 3600;
+ 
+ export const metadata: Metadata = {
+   title: "Fresh Flowers in Thane | Home Delivery & 1-Day Ordering",
+@@ -104,6 +109,9 @@ export default async function FlowersInThanePage() {
+   };
+ 
+   const itemListJson = JSON.stringify(itemListSchema).replace(/</g, "\\u003c");
++  const breadcrumbJson = JSON.stringify(
++    buildBreadcrumbSchema([{ name: "Fresh Flowers in Thane", path: "/flowers-in-thane" }])
++  ).replace(/</g, "\\u003c");
+ 
+   return (
+     <div className="min-h-screen bg-[#FAF6F0] text-stone-900">
+@@ -111,6 +119,10 @@ export default async function FlowersInThanePage() {
+         type="application/ld+json"
+         dangerouslySetInnerHTML={{ __html: itemListJson }}
+       />
++      <script
++        type="application/ld+json"
++        dangerouslySetInnerHTML={{ __html: breadcrumbJson }}
++      />
+ 
+       <section className="border-b border-[#E6DEC8] bg-[#1C1917] px-4 py-14 text-white sm:py-20">
+         <div className="mx-auto max-w-6xl space-y-5">
+@@ -290,6 +302,27 @@ export default async function FlowersInThanePage() {
+         </div>
+       </section>
+ 
++      <section className="mx-auto max-w-5xl px-4 pt-14 sm:pt-20">
++        <h2 className="font-serif text-2xl font-bold sm:text-3xl">
++          More Ways to Order Flowers in Thane
++        </h2>
++        <ul className="mt-4 space-y-2 text-sm">
++          {SEO_LANDING_LINKS.filter((link) => link.href !== "/flowers-in-thane").map(
++            (link) => (
++              <li key={link.href}>
++                <Link
++                  href={link.href}
++                  className="font-semibold text-[#C84617] hover:underline"
++                >
++                  {link.label}
++                </Link>
++                <span className="text-stone-500"> — {link.hint}</span>
++              </li>
++            )
++          )}
++        </ul>
++      </section>
++
+       <section className="mx-auto max-w-5xl space-y-6 px-4 py-14 sm:py-20">
+         <h2 className="font-serif text-2xl font-bold sm:text-3xl">
+           Frequently Asked Questions About Flower Delivery in Thane
+diff --git a/src/app/(storefront)/pooja-flowers-thane/page.tsx b/src/app/(storefront)/pooja-flowers-thane/page.tsx
+new file mode 100644
+index 0000000..83d1a71
+--- /dev/null
++++ b/src/app/(storefront)/pooja-flowers-thane/page.tsx
+@@ -0,0 +1,90 @@
++import type { Metadata } from "next";
++import { getCachedServerStoreConfig } from "@/features/checkout/checkout.service";
++import { SeoLandingTemplate } from "../_seo/SeoLandingTemplate";
++
++// Catalogue is read through the cached server config; ISR keeps the page
++// static for crawlers and refreshes it hourly.
++export const revalidate = 3600;
++
++const PATH = "/pooja-flowers-thane";
++
++export const metadata: Metadata = {
++  title: "Pooja Flowers in Thane | Fresh Marigold & Shevanti Delivery",
++  description:
++    "Order fresh pooja flowers in Thane: marigold (झेंडू), shevanti (शेवंती) and pooja flower packs, delivered to your door between 6 AM and 8 AM across pincodes 400601–400608.",
++  alternates: { canonical: `https://palassh.com${PATH}` },
++};
++
++const FAQS = [
++  {
++    q: "Where can I buy fresh pooja flowers in Thane without going to the market?",
++    a: "PALASSH delivers fresh marigold, shevanti and pooja flower packs to homes in Thane pincodes 400601 to 400608. You pick a plan online, and the pouch is left on your door handle in the morning, ready for your puja.",
++  },
++  {
++    q: "Which pooja flowers do you deliver?",
++    a: "The varieties currently listed on this page, including marigold (झेंडू), shevanti (शेवंती) and a mixed pooja flower assortment, in 100g and 150g packs. The list follows the live catalogue, so it grows when new flowers are added.",
++  },
++  {
++    q: "How fresh are the flowers when they arrive?",
++    a: "Flowers are sent from the farm at 8:00 PM the previous evening and delivered between 6:00 AM and 8:00 AM. PALASSH does not use cold storage.",
++  },
++  {
++    q: "Can I order pooja flowers for just one day, for example before a festival?",
++    a: "Yes. The 1 Day Plan is a single morning delivery with no subscription. If you order before 11:45 PM, delivery is scheduled for the next available morning, according to the checkout calendar.",
++  },
++  {
++    q: "Will the delivery person ring the bell?",
++    a: "No. Deliveries follow a silent drop: riders do not ring the bell or call in the morning. The pouch is hung on your main door handle.",
++  },
++];
++
++export default async function PoojaFlowersThanePage() {
++  const config = await getCachedServerStoreConfig();
++  const flowers = config.flowers
++    .filter((flower) => flower.inStock !== false && flower.name)
++    .map((flower) => ({
++      name: String(flower.name).trim(),
++      marathiName: flower.marathiName || undefined,
++    }));
++
++  return (
++    <SeoLandingTemplate
++      path={PATH}
++      breadcrumbName="Pooja Flowers in Thane"
++      eyebrow="PALASSH • Morning Puja Flower Delivery"
++      h1="Fresh Pooja Flowers in Thane, Delivered Before Your Morning Puja"
++      intro="Marigold, shevanti and pooja flower packs, sent from the farm the evening before and left at your door between 6:00 AM and 8:00 AM. Order for one day or set up a weekly or monthly plan."
++      sections={[
++        {
++          heading: "Pooja flowers delivered to your door in Thane",
++          paragraphs: [
++            "A daily puja needs flowers early, and fresh ones. PALASSH brings them to you instead: choose a pack size, check that your pincode is on a delivery route, and the flowers arrive in a breathable pouch before your morning aarti.",
++            "You can start with a single day to see the quality, then move to a weekly or monthly plan if you want flowers every morning without ordering each time.",
++          ],
++        },
++        {
++          heading: "How ordering pooja flowers works",
++          bullets: [
++            "Enter your 6-digit pincode to confirm we deliver to your society.",
++            "Pick a 1 Day, Weekly or Monthly plan, then a flower and a 100g or 150g pack.",
++            "Pay online at checkout. Plans are prepaid.",
++            "Receive the pouch on your door handle between 6:00 AM and 8:00 AM, with no bell and no phone call.",
++          ],
++        },
++        {
++          heading: "Where we deliver pooja flowers in Thane",
++          paragraphs: [
++            "Delivery covers Thane pincodes 400601 to 400608, including Thane West, Ghodbunder Road, Kalwa, Pokhran Road, Naupada and Balkum. Our hub is in Kalwa (400605). Use the pincode checker on the home page to confirm your exact route before you order.",
++          ],
++        },
++      ]}
++      flowersHeading="Pooja flowers you can order right now"
++      flowers={flowers}
++      plans={config.plans}
++      plansHeading="Plans for pooja flower delivery"
++      faqs={FAQS}
++      relatedHrefs={["/flowers-in-thane", "/daily-flower-supplier-thane"]}
++      whatsappMessage="Hi PALASSH, I would like to know about pooja flower delivery in Thane."
++    />
++  );
++}
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+index 16b937d..510b0f5 100644
+--- a/src/app/sitemap.ts
++++ b/src/app/sitemap.ts
+@@ -9,6 +9,8 @@ const BASE_URL = "https://palassh.com";
+ const PATHS = [
+   "",
+   "/flowers-in-thane",
++  "/pooja-flowers-thane",
++  "/daily-flower-supplier-thane",
+   "/about",
+   "/legal/privacy-policy",
+   "/legal/terms-and-conditions",
+diff --git a/src/components/layout/Footer.tsx b/src/components/layout/Footer.tsx
+index e61d543..200c7c4 100644
+--- a/src/components/layout/Footer.tsx
++++ b/src/components/layout/Footer.tsx
+@@ -259,6 +259,16 @@ export function Footer() {
+                     Flower Catalogue
+                   </Link>
+                 </li>
++                <li>
++                  <Link href="/pooja-flowers-thane" className="hover:text-white transition">
++                    Pooja Flowers in Thane
++                  </Link>
++                </li>
++                <li>
++                  <Link href="/daily-flower-supplier-thane" className="hover:text-white transition">
++                    Daily Flower Supplier
++                  </Link>
++                </li>
+                 <li>
+                   <Link href="/about" className="hover:text-white transition">
+                     About Us

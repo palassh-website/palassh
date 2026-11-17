@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getCachedServerStoreConfig } from "@/features/checkout/checkout.service";
+import { buildBreadcrumbSchema, SEO_LANDING_LINKS } from "../_seo/seo-helpers";
 
-export const dynamic = "force-dynamic";
+// Nothing here depends on the request (no cookies/headers/searchParams), so
+// force-dynamic only made every crawler hit run a serverless function plus a DB
+// lookup. ISR serves a pre-built page from the edge and still picks up
+// catalogue changes made in the admin within the hour.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Fresh Flowers in Thane | Home Delivery & 1-Day Ordering",
@@ -104,12 +109,19 @@ export default async function FlowersInThanePage() {
   };
 
   const itemListJson = JSON.stringify(itemListSchema).replace(/</g, "\\u003c");
+  const breadcrumbJson = JSON.stringify(
+    buildBreadcrumbSchema([{ name: "Fresh Flowers in Thane", path: "/flowers-in-thane" }])
+  ).replace(/</g, "\\u003c");
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] text-stone-900">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: itemListJson }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: breadcrumbJson }}
       />
 
       <section className="border-b border-[#E6DEC8] bg-[#1C1917] px-4 py-14 text-white sm:py-20">
@@ -288,6 +300,27 @@ export default async function FlowersInThanePage() {
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 pt-14 sm:pt-20">
+        <h2 className="font-serif text-2xl font-bold sm:text-3xl">
+          More Ways to Order Flowers in Thane
+        </h2>
+        <ul className="mt-4 space-y-2 text-sm">
+          {SEO_LANDING_LINKS.filter((link) => link.href !== "/flowers-in-thane").map(
+            (link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="font-semibold text-[#C84617] hover:underline"
+                >
+                  {link.label}
+                </Link>
+                <span className="text-stone-500"> — {link.hint}</span>
+              </li>
+            )
+          )}
+        </ul>
       </section>
 
       <section className="mx-auto max-w-5xl space-y-6 px-4 py-14 sm:py-20">

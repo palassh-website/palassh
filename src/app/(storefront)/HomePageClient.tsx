@@ -569,8 +569,16 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-1">
+                {/* The carousel rotates its visible title every 6s, so the page's
+                    real <h1> must not live inside it: a crawler's rendered
+                    snapshot would otherwise see a different H1 depending on
+                    timing. This stable H1 states the page topic; the animated
+                    slide title below is a <p>. */}
+                <h1 className="sr-only">
+                  Fresh Flowers in Thane: Daily Puja Flower Home Delivery by PALASSH
+                </h1>
                 <SplitText
-                  as="h1"
+                  as="p"
                   play
                   mode="words"
                   stagger={50}
@@ -768,7 +776,7 @@ export default function HomePage() {
              </div>
              <div>
                <p className="text-xs sm:text-sm font-bold text-stone-900">
-                 Weekly & Monthly Subscribers Only — Add-On Shopping Locked
+                 Weekly & Monthly Subscribers Only Add-On Shopping Locked
                </p>
                <p className="text-[11px] text-stone-600 mt-0.5">
                  Subscribe to a Weekly (from ₹299) or Monthly (from ₹1,249)

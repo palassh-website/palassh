@@ -9,6 +9,8 @@ const BASE_URL = "https://palassh.com";
 const PATHS = [
   "",
   "/flowers-in-thane",
+  "/pooja-flowers-thane",
+  "/daily-flower-supplier-thane",
   "/about",
   "/legal/privacy-policy",
   "/legal/terms-and-conditions",
